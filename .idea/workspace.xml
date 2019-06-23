@@ -9,7 +9,9 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8084bb2d-c816-4c57-8dde-be7e8bcda01b" name="Default Changelist" comment="" />
+    <list default="true" id="8084bb2d-c816-4c57-8dde-be7e8bcda01b" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/design_doc/design.md" beforeDir="false" afterPath="$PROJECT_DIR$/design_doc/design.md" afterDir="false" />
+    </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -21,18 +23,18 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/LICENSE">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="112">
-              <caret line="7" column="21" selection-start-line="7" selection-start-column="21" selection-end-line="7" selection-end-column="21" />
+            <state relative-caret-position="336">
+              <caret line="21" lean-forward="true" selection-start-line="21" selection-end-line="21" />
             </state>
           </provider>
         </entry>
       </file>
       <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/design.md">
+        <entry file="file://$PROJECT_DIR$/design_doc/design.md">
           <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
             <state split_layout="SPLIT">
-              <first_editor relative-caret-position="284">
-                <caret line="27" column="30" selection-start-line="27" selection-start-column="30" selection-end-line="27" selection-end-column="30" />
+              <first_editor relative-caret-position="527">
+                <caret line="85" column="8" lean-forward="true" selection-start-line="85" selection-start-column="8" selection-end-line="85" selection-end-column="8" />
               </first_editor>
               <second_editor />
             </state>
@@ -48,6 +50,7 @@
     <option name="CHANGED_PATHS">
       <list>
         <option value="$PROJECT_DIR$/design.md" />
+        <option value="$PROJECT_DIR$/design_doc/design.md" />
       </list>
     </option>
   </component>
@@ -68,6 +71,11 @@
             <path>
               <item name="silkstore" type="b2602c69:ProjectViewProjectNode" />
               <item name="silkstore" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="silkstore" type="b2602c69:ProjectViewProjectNode" />
+              <item name="silkstore" type="462c0819:PsiDirectoryNode" />
+              <item name="design_doc" type="462c0819:PsiDirectoryNode" />
             </path>
           </expand>
           <select />
@@ -100,18 +108,18 @@
       <option name="presentableId" value="Default" />
       <updated>1561109040013</updated>
       <workItem from="1561109041653" duration="10427000" />
-      <workItem from="1561293765357" duration="598000" />
+      <workItem from="1561293765357" duration="801000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="11025000" />
+    <option name="totallyTimeSpent" value="11228000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="0" y="23" width="1440" height="877" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.14377682" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.19098713" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -133,18 +141,28 @@
     </layout>
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/LICENSE">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="112">
-          <caret line="7" column="21" selection-start-line="7" selection-start-column="21" selection-end-line="7" selection-end-column="21" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/design.md">
       <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
         <state split_layout="SPLIT">
-          <first_editor relative-caret-position="284">
-            <caret line="27" column="30" selection-start-line="27" selection-start-column="30" selection-end-line="27" selection-end-column="30" />
+          <first_editor relative-caret-position="384">
+            <caret line="14" column="223" lean-forward="true" selection-start-line="14" selection-start-column="223" selection-end-line="14" selection-end-column="223" />
+          </first_editor>
+          <second_editor />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/LICENSE">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="336">
+          <caret line="21" lean-forward="true" selection-start-line="21" selection-end-line="21" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/design_doc/design.md">
+      <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
+        <state split_layout="SPLIT">
+          <first_editor relative-caret-position="527">
+            <caret line="85" column="8" lean-forward="true" selection-start-line="85" selection-start-column="8" selection-end-line="85" selection-end-column="8" />
           </first_editor>
           <second_editor />
         </state>
