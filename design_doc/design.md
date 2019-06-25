@@ -26,6 +26,7 @@ silktree实际上有两个组件，一个是memtable，另外一个是SSD上的�
 * block index 开销: 约为N/B * 16 bytes
 * delta位置信息开销：最大开销约为L * T * 8 bytes。
 * bloom filter开销：false positive rate 1%，每个key需要10个bit。
+
 总开销大概在 N/B * 16 bytes + N * 1.25 bytes + L * T * 8 bytes.
 
 #### 例子

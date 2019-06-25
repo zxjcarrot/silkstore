@@ -126,7 +126,7 @@ DEFINE_string(
     "timeseries",
 
     "Comma-separated list of operations to run in the specified"
-    " order. Available benchmarks:\n"
+    " order. Available benchmarks:\ndb_bench_tool"
     "\tfillseq       -- write N values in sequential key"
     " order in async mode\n"
     "\tfillseqdeterministic       -- write N values in the specified"
