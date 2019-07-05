@@ -37,27 +37,40 @@ silktree实际上有两个组件，一个是memtable，另外一个是SSD上的�
     总计1.16 + 0.75 + 0.09 ~ 2GB，占总数据大小的1%。
     再加上memtable的大小，占总数据大小的3.5%。
 ### 物理存储组织
-因为数据以append only的形式写入`MiniRun Log`，并且需要做GC。我们将一个Log切分成多个较大的`segment`文件，比如每个`segment`的大小为64MB。GC粒度为`segment`。
+因为数据以append only的形式写入`MiniRun Log`，并且需要做GC。我们将一个Log切分成多个较大的`segment`文件，比如每个`segment`大小至少为32MB。GC粒度为`segment`。
 ###### Segment File Format
-segment文件由minirun组成
+segment文件由多个minirun组成，以及一些索引信息.
 ```text
 [minirun 1] 
 [minirun 2]
 ...
 [minirun n]
-[fix-sized footer]
+[minirun handles block]
+[minrun handle block size]
 ```
+segment的倒数第二部分是minirun handles block，存储了n个minirun的位置)varint encoding), segment的最后8个字节存储了minirun handles block的大小(字节为单位)。
+###### Data Grouping
+将访问模式相似的minirun存储在同一个segment里将会加速后面的GC。
+一个初步想法：
+
+为每个Leaf维护一个APScore(Access Pattern Score)，取值[0, 1]。越靠近0表示该Leaf更新的越频繁，越靠近1表示该Leaf读取的越频繁。然后只考虑最近W个merge周期以内该Leaf的读写次数Nr和Nw。用rwratio表示整个数据库读写请求的比例。
+则APScore的一种简单计算方式:
+```python
+def APScore(Nw, Nr, rwratio=3):
+    return 0.5 * ((Nr - Nw*rwratio) / (Nr + Nw*rwratio) + 1)
+```
+
+得到APScore之后，我们就可以对所有对minirun进行分类了，一种简单的方案是按照该minirun的leaf的APScore进行排序，相邻的minirun合并写入同一个segment，并且要求创建的segment大小至少为32MB。
 
 ###### Variable-sized MiniRun Format
 MiniRun是一组有序kv pairs, 按block切分，block的大小一般为4KB。`Leaf Identifier`用于GC时，寻找该minirun应该属于哪个leaf。
 ```text
-Leaf Identifier Length
-Leaf Identifier
 [block 1]
 [block 2]
 ...
 [block m]
 ```
+每个MiniRun的block index将会被单独存放在下面的Leaf Index中。
 
 ### Leaf索引
 Leaf Index，需要提供几种功能：
@@ -84,6 +97,6 @@ num_miniruns
 ...
 [filter num_miniruns]
 ```
-##### 引用
+### 引用
 1. Mendel Rosenblum and John K. Ousterhout. 1992. *The design and implementation of a log-structured file system*. ACM Trans. Comput. Syst. 10, 1 (February 1992), 26-52.
 2. Changwoo Min, Kangnyeon Kim, Hyunjin Cho, Sang-Won Lee, and Young Ik Eom. 2012. *SFS: random write considered harmful in solid state drives*. In Proceedings of the 10th USENIX conference on File and Storage Technologies (FAST'12). USENIX Association, Berkeley, CA, USA, 12-12.

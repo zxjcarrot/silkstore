@@ -19,6 +19,14 @@ FilterBlockBuilder::FilterBlockBuilder(const FilterPolicy* policy)
     : policy_(policy) {
 }
 
+void FilterBlockBuilder::Reset() {
+  keys_.clear();
+  start_.clear();
+  result_.clear();
+  tmp_keys_.clear();
+  filter_offsets_.clear();
+}
+
 void FilterBlockBuilder::StartBlock(uint64_t block_offset) {
   uint64_t filter_index = (block_offset / kFilterBase);
   assert(filter_index >= filter_offsets_.size());
@@ -32,6 +40,23 @@ void FilterBlockBuilder::AddKey(const Slice& key) {
   start_.push_back(keys_.size());
   keys_.append(k.data(), k.size());
 }
+
+Slice FilterBlockBuilder::FinishWithoutOffsets() {
+    if (!start_.empty()) {
+      GenerateFilter();
+    }
+
+    //    // Append array of per-filter offsets
+    //    const uint32_t array_offset = result_.size();
+    //    for (size_t i = 0; i < filter_offsets_.size(); i++) {
+    //      PutFixed32(&result_, filter_offsets_[i]);
+    //    }
+    //
+    //    PutFixed32(&result_, array_offset);
+    //    result_.push_back(kFilterBaseLg);  // Save encoding parameter in result
+    return Slice(result_);
+}
+
 
 Slice FilterBlockBuilder::Finish() {
   if (!start_.empty()) {

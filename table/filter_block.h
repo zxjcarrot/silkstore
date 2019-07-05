@@ -33,7 +33,8 @@ class FilterBlockBuilder {
   void StartBlock(uint64_t block_offset);
   void AddKey(const Slice& key);
   Slice Finish();
-
+  Slice FinishWithoutOffsets();
+  void Reset();
  private:
   void GenerateFilter();
 
