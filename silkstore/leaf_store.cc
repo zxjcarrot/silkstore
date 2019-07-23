@@ -4,6 +4,8 @@
 
 #include "leaf_store.h"
 
+#include <vector>
+
 #include "table/filter_block.h"
 #include "table/format.h"
 #include "table/merger.h"
@@ -13,6 +15,132 @@
 
 namespace leveldb {
 namespace silkstore {
+
+class LeafStore::LeafStoreIterator : public Iterator {
+ public:
+    LeafStoreIterator(const ReadOptions &options, LeafStore* store)
+        : ropts_(options),
+          store_(store),
+          leaf_it_(nullptr) {
+        leaf_index_it_ = store_->leaf_index_->NewIterator(options);
+    }
+
+    ~LeafStoreIterator() override;
+
+    // An iterator is either positioned at a key/value pair, or
+    // not valid.  This method returns true iff the iterator is valid.
+    bool Valid() const override {
+        return status_.ok() && leaf_it_ && leaf_it_->Valid() && leaf_index_it_->Valid();
+    }
+
+    // Position at the first key in the source.  The iterator is Valid()
+    // after this call iff the source is not empty.
+    void SeekToFirst() override {
+        if (!status_.ok()) status_ = Status::OK();
+        leaf_index_it_->SeekToFirst();
+        OpenLeafIterator();
+        if (status_.ok()) {
+            leaf_it_->SeekToFirst();
+        }
+    }
+
+    // Position at the last key in the source.  The iterator is
+    // Valid() after this call iff the source is not empty.
+    void SeekToLast() override {
+        if (!status_.ok()) status_ = Status::OK();
+        leaf_index_it_->SeekToLast();
+        OpenLeafIterator();
+        if (status_.ok()) {
+            leaf_it_->SeekToLast();
+        }
+    }
+
+    // Position at the first key in the source that is at or past target.
+    // The iterator is Valid() after this call iff the source contains
+    // an entry that comes at or past target.
+    void Seek(const Slice& target) override {
+        if (!status_.ok()) status_ = Status::OK();
+        leaf_index_it_->Seek(target);
+        OpenLeafIterator();
+        if (status_.ok()) {
+            leaf_it_->Seek(target);
+        }
+    }
+
+    // Moves to the next entry in the source.  After this call, Valid() is
+    // true iff the iterator was not positioned at the last entry in the source.
+    // REQUIRES: Valid()
+    void Next() override {
+        if (leaf_it_ == nullptr) return Status::Corruption("Empty Leaf Reference");
+        assert(leaf_it_->Valid());
+        leaf_it_->Next();
+        if (!leaf_it_->Valid()) {
+            leaf_index_it_->Next();
+            OpenLeafIterator();
+            if (status_.ok()) {
+                leaf_it_->SeekToFirst();
+            }
+        }
+    }
+
+    // Moves to the previous entry in the source.  After this call, Valid() is
+    // true iff the iterator was not positioned at the first entry in source.
+    // REQUIRES: Valid()
+    void Prev() override {
+        if (leaf_it_ == nullptr) return Status::Corruption("Empty Leaf Reference");
+        assert(leaf_it_->Valid());
+        leaf_it_->Prev();
+        if (!leaf_it_->Valid()) {
+            leaf_index_it_->Prev();
+            OpenLeafIterator();
+            if (status_.ok()) {
+                leaf_it_->SeekToLast();
+            }
+        }
+    }
+
+    // Return the key for the current entry.  The underlying storage for
+    // the returned slice is valid only until the next modification of
+    // the iterator.
+    // REQUIRES: Valid()
+    Slice key() const override {
+        assert(Valid());
+        return leaf_it_->key();
+    }
+
+    // Return the value for the current entry.  The underlying storage for
+    // the returned slice is valid only until the next modification of
+    // the iterator.
+    // REQUIRES: Valid()
+    Slice value() const override {
+        assert(Valid());
+        return leaf_it_->value();
+    }
+
+    // If an error has occurred, return it.  Else return an ok status.
+    Status status() const override {
+        if (!status_.ok()) return status_;
+        Status s = leaf_index_it_->status();
+        if (s.ok()) {
+            if (leaf_it_ == nullptr) s = Status::Corruption("Empty Leaf Reference");
+            else s = leaf_it_->status();
+        }
+        return s;
+    }
+ private:
+    ReadOptions ropts_;
+    Status status_;  // only store non-iterator error here
+    LeafStore* store_;
+    Iterator* leaf_index_it_;
+    Iterator* leaf_it_ = nullptr;
+
+    void OpenLeafIterator() {
+        if (leaf_index_it_->Valid()) {
+            LeafIndexEntry index_entry(leaf_index_it_->value());
+            leaf_it_ = store_->NewIteratorForLeaf(ropts_, index_entry, status_);
+        }
+    }
+};
 
 MiniRunIndexEntry::MiniRunIndexEntry(const Slice &data) : raw_data_(data) {
     assert(raw_data_.size() >= 16);
@@ -160,7 +288,7 @@ Status LeafIndexEntryBuilder::ReplaceMiniRunRange(const LeafIndexEntry &base,
 
 Iterator* LeafStore::NewIterator(const ReadOptions &options) {
     // TODO: implment iterator interface
-    return nullptr;
+    return new LeafStoreIterator(options, this);
 }
 
 Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::string *value) {

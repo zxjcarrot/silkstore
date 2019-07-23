@@ -100,7 +100,6 @@ static std::string CurrentFilename(const std::string &dbname) {
     return dbname + "/" + kCURRENTFilename;
 }
 
-
 Status SilkStore::RecoverLogFile(uint64_t log_number, SequenceNumber *max_sequence) {
     struct LogReporter : public log::Reader::Reporter {
         Env *env;
@@ -246,7 +245,28 @@ Status SilkStore::Delete(const WriteOptions& options, const Slice& key) {
 }
 
 Iterator* SilkStore::NewIterator(const ReadOptions& ropts) {
-    return nullptr;
+    MutexLock l(&mutex_);
+    *latest_snapshot = versions_->LastSequence();
+
+    // Collect together all needed child iterators
+    std::vector<Iterator*> list;
+    list.push_back(mem_->NewIterator());
+    mem_->Ref();
+    if (imm_ != nullptr) {
+        list.push_back(imm_->NewIterator());
+        imm_->Ref();
+    }
+    // versions_->current()->AddIterators(options, &list);
+    list.push_back(leaf_store_->NewIterator(ropts));
+    Iterator* internal_iter =
+      NewMergingIterator(&internal_comparator_, &list[0], list.size());
+    versions_->current()->Ref();
+
+    IterState* cleanup = new IterState(&mutex_, mem_, imm_, versions_->current());
+    internal_iter->RegisterCleanup(CleanupIteratorState, cleanup, nullptr);
+
+    *seed = ++seed_;
+    return internal_iter;
 }
 
 // REQUIRES: mutex_ is held

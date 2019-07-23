@@ -21,6 +21,7 @@
 
 namespace leveldb {
 namespace silkstore {
+
 // format
 //
 class MiniRunIndexEntry {
@@ -46,7 +47,6 @@ class MiniRunIndexEntry {
     uint32_t block_index_data_len_;
     uint32_t filter_data_len_;
 };
-
 
 class LeafIndexEntry {
  public:
@@ -111,6 +111,8 @@ class LeafStore {
                                  uint32_t start_minirun_no = 0,
                                  uint32_t end_minirun_no = std::numeric_limits<uint32_t>::max());
  private:
+    class LeafStoreIterator;
+
     LeafStore(SegmentManager *seg_manager, DB *leaf_index,
               const Options &options, const Comparator *user_cmp)
         : seg_manager_(seg_manager),
