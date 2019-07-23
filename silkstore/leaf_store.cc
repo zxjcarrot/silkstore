@@ -172,14 +172,14 @@ Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::str
             return true;
 
         Block index_block(BlockContents{minirun_index_entry.GetBlockIndexData(), false, false});
-        MiniRun run;
+        MiniRun *run;
         uint32_t run_no = minirun_index_entry.GetRunNumberWithinSegment();
         s = seg->OpenMiniRun(run_no, index_block, &run);
         if (!s.ok())
             return true;
 
-        Iterator *iter = run.NewIterator(options);
-        DeferCode c([iter](){delete iter;});
+        Iterator *iter = run->NewIterator(options);
+        DeferCode c([iter, run](){delete run; delete iter;});
         iter->Seek(key.internal_key());
 
         if (iter->Valid()) {

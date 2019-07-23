@@ -75,7 +75,7 @@ Status Segment::Open(const Options &options, uint32_t segment_id, RandomAccessFi
     return Status::OK();
 }
 
-Status Segment::OpenMiniRun(int run_no, Block &index_block, MiniRun *run) {
+Status Segment::OpenMiniRun(int run_no, Block &index_block, MiniRun **run) {
     Rep *r = rep_;
     if (run_no < 0 || run_no >= r->run_handles.size())
         return Status::InvalidArgument("run_no is not in valid range");
@@ -83,7 +83,7 @@ Status Segment::OpenMiniRun(int run_no, Block &index_block, MiniRun *run) {
     uint64_t run_size =
             run_no + 1 == r->run_handles.size() ? r->file_size - run_offset : r->run_handles[run_no + 1] - run_offset;
 
-    *run = MiniRun(r->options, r->file, run_offset, run_size, index_block);
+    *run = new MiniRun(&r->options, r->file, run_offset, run_size, index_block);
     return Status::OK();
 }
 
@@ -108,7 +108,7 @@ struct SegmentManager::Rep {
     std::mutex mutex;
     std::unordered_map<uint32_t, Segment*> segments;
     std::unordered_map<uint32_t, std::string> segment_filepaths;
-    int seg_id_max = 0;
+    uint32_t seg_id_max = 0;
     Options options;
 };
 

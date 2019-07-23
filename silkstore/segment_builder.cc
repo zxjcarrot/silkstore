@@ -117,7 +117,7 @@ Status SegmentBuilder::Finish() {
     leveldb::PutFixed64(&buf, buf_size);
     r->status = r->file->Append(buf);
 
-    return leveldb::Env::Default()->RenameFile(r->src_segment_filepath, r->target_segment_filepath));
+    return leveldb::Env::Default()->RenameFile(r->src_segment_filepath, r->target_segment_filepath);
 }
 
 uint64_t SegmentBuilder::NumEntries() const {

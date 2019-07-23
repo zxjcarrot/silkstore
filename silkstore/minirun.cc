@@ -13,6 +13,7 @@
 #include "table/format.h"
 #include "util/coding.h"
 #include "util/crc32c.h"
+#include "table/block_builder.h"
 
 #include "silkstore/minirun.h"
 #include "silkstore/segment.h"
@@ -23,37 +24,37 @@ namespace silkstore {
 using namespace leveldb;
 using namespace leveldb::crc32c;
 
-MiniRun::MiniRun(const Options &options, RandomAccessFile *file, uint64_t off, uint64_t size, Block &index_block) :
+MiniRun::MiniRun(const Options *options, RandomAccessFile *file, uint64_t off, uint64_t size, Block &index_block) :
         options(options),
         file(file),
         run_start_off(off),
         run_size(size),
         index_block(index_block) {}
 
-static void DeleteBlock(void* arg, void* ignored) {
-    delete reinterpret_cast<Block*>(arg);
+static void DeleteBlock(void *arg, void *ignored) {
+    delete reinterpret_cast<Block *>(arg);
 }
 
-static void DeleteCachedBlock(const Slice& key, void* value) {
-    Block* block = reinterpret_cast<Block*>(value);
+static void DeleteCachedBlock(const Slice &key, void *value) {
+    Block *block = reinterpret_cast<Block *>(value);
     delete block;
 }
 
-static void ReleaseBlock(void* arg, void* h) {
-    Cache* cache = reinterpret_cast<Cache*>(arg);
-    Cache::Handle* handle = reinterpret_cast<Cache::Handle*>(h);
+static void ReleaseBlock(void *arg, void *h) {
+    Cache *cache = reinterpret_cast<Cache *>(arg);
+    Cache::Handle *handle = reinterpret_cast<Cache::Handle *>(h);
     cache->Release(handle);
 }
 
 // Convert an index iterator value (i.e., an encoded BlockHandle)
 // into an iterator over the contents of the corresponding block.
-Iterator* MiniRun::BlockReader(void* arg,
-                             const ReadOptions& options,
-                             const Slice& index_value) {
-    MiniRun* run = reinterpret_cast<MiniRun*>(arg);
-    Cache* block_cache = run->options.block_cache;
-    Block* block = nullptr;
-    Cache::Handle* cache_handle = nullptr;
+Iterator *MiniRun::BlockReader(void *arg,
+                               const ReadOptions &options,
+                               const Slice &index_value) {
+    MiniRun *run = reinterpret_cast<MiniRun *>(arg);
+    Cache *block_cache = run->options->block_cache;
+    Block *block = nullptr;
+    Cache::Handle *cache_handle = nullptr;
 
     BlockHandle handle;
     Slice input = index_value;
@@ -94,9 +95,9 @@ Iterator* MiniRun::BlockReader(void* arg,
         }
     }
 
-    Iterator* iter;
+    Iterator *iter;
     if (block != nullptr) {
-        iter = block->NewIterator(run->options.comparator);
+        iter = block->NewIterator(run->options->comparator);
         if (cache_handle == nullptr) {
             iter->RegisterCleanup(&DeleteBlock, block, nullptr);
         } else {
@@ -108,10 +109,10 @@ Iterator* MiniRun::BlockReader(void* arg,
     return iter;
 }
 
-Iterator* MiniRun::NewIterator(const leveldb::ReadOptions & read_options) {
+Iterator *MiniRun::NewIterator(const leveldb::ReadOptions &read_options) {
     return leveldb::NewTwoLevelIterator(
-            index_block.NewIterator(options.comparator),
-            &MiniRun::BlockReader, const_cast<MiniRun*>(this), read_options);
+            index_block.NewIterator(this->options->comparator),
+            &MiniRun::BlockReader, const_cast<MiniRun *>(this), read_options);
 }
 
 }

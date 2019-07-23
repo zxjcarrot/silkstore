@@ -13,7 +13,6 @@
 #include "silkstore/minirun.h"
 
 namespace silkstore {
-using leveldb::RandomAccessFile;
 
 static std::string MakeSegmentFileName(uint32_t segment_id);
 
@@ -22,7 +21,7 @@ public:
     // Create a builder that will store the contents of the table it is
     // building in *file.  Does not close the file.  It is up to the
     // caller to close the file after calling Finish().
-    SegmentBuilder(const Options &options, const std::string &src_segment_filepath,
+    SegmentBuilder(const leveldb::Options &options, const std::string &src_segment_filepath,
                    const std::string &target_segment_filepath, WritableFile *file);
 
     SegmentBuilder(const SegmentBuilder &) = delete;
@@ -93,7 +92,7 @@ private:
 class Segment {
 public:
     static Status
-    Open(const Options &options, uint32_t segment_id, RandomAccessFile *file, uint64_t file_size, Segment **segment);
+    Open(const leveldb::Options &options, uint32_t segment_id, RandomAccessFile *file, uint64_t file_size, Segment **segment);
 
     ~Segment();
 
@@ -101,7 +100,7 @@ public:
 
     void operator=(const Segment &) = delete;
 
-    Status OpenMiniRun(int run_no, Block &index_block, MiniRun *run);
+    Status OpenMiniRun(int run_no, Block &index_block, MiniRun **run);
 
     // Mark the minirun indicated by the segment.run_handle[run_no] as invalid.
     // Later GCs can simply skip this run without querying index for validness.
@@ -130,7 +129,7 @@ public:
 
     SegmentManager &operator=(const SegmentManager &&) = delete;
 
-    static Status OpenManager(const Options &options, const std::string &dbname, SegmentManager **manager_ptr);
+    static Status OpenManager(const leveldb::Options &options, const std::string &dbname, SegmentManager **manager_ptr);
 
     Status OpenSegment(uint32_t seg_id, Segment **seg_ptr);
 

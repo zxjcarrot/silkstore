@@ -95,6 +95,7 @@ uint32_t block_index_data_len: block_index数据块长度
 char filter_data[filter_data_len]： filter数据块
 char block_index [block_index_data_len]： block index数据块
 ```
+具体的使用可以参考silkstore/leaf_store.cc里的LeafStore::Get方法。
 ### 引用
 1. Mendel Rosenblum and John K. Ousterhout. 1992. *The design and implementation of a log-structured file system*. ACM Trans. Comput. Syst. 10, 1 (February 1992), 26-52.
 2. Changwoo Min, Kangnyeon Kim, Hyunjin Cho, Sang-Won Lee, and Young Ik Eom. 2012. *SFS: random write considered harmful in solid state drives*. In Proceedings of the 10th USENIX conference on File and Storage Technologies (FAST'12). USENIX Association, Berkeley, CA, USA, 12-12.

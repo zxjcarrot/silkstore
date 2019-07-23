@@ -7,20 +7,18 @@
 
 #include <stdint.h>
 #include <functional>
-
+#include "leveldb/options.h"
 #include "leveldb/db.h"
 #include "leveldb/slice.h"
 #include "leveldb/iterator.h"
 #include "leveldb/cache.h"
-#include "table/block_builder.h"
 #include "table/block.h"
 #include "db/dbformat.h"
 
 #include "segment.h"
 
+typedef ::leveldb::DB leveldb_DB;
 namespace silkstore {
-using namespace leveldb;
-
 // format
 //
 class MiniRunIndexEntry {
@@ -95,7 +93,7 @@ public:
 class LeafStore {
 public:
     static Status
-    Open(SegmentManager *seg_manager, leveldb::DB *leaf_index, const Options &options, const Comparator *user_cmp,
+    Open(SegmentManager *seg_manager, leveldb_DB *leaf_index, const leveldb::Options &options, const Comparator *user_cmp,
          LeafStore **store);
 
     Status Get(const ReadOptions &options, const LookupKey &key, std::string *value);
@@ -103,13 +101,13 @@ public:
     Iterator* NewIterator(const ReadOptions &options);
 
 private:
-    LeafStore(SegmentManager *seg_manager, leveldb::DB *leaf_index, const Options &options,
+    LeafStore(SegmentManager *seg_manager, leveldb_DB *leaf_index, const leveldb::Options &options,
               const Comparator *user_cmp) : seg_manager_(seg_manager), leaf_index_(leaf_index), options_(options),
                                             user_cmp_(user_cmp) {}
 
     SegmentManager *seg_manager_;
-    leveldb::DB *leaf_index_;
-    const Options options_;
+    leveldb_DB *leaf_index_;
+    const leveldb::Options options_;
     const Comparator *user_cmp_ = nullptr;
 };
 }

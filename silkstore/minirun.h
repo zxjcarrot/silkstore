@@ -9,26 +9,14 @@
 #include "leveldb/slice.h"
 #include "leveldb/iterator.h"
 #include "leveldb/cache.h"
-#include "table/block_builder.h"
+#include "leveldb/env.h"
 #include "table/block.h"
 
-namespace silkstore {
-using leveldb::Slice;
-using leveldb::Options;
-using leveldb::WritableFile;
-using leveldb::RandomAccessFile;
-using leveldb::Status;
-using leveldb::BlockBuilder;
-using leveldb::BlockHandle;
-using leveldb::FilterBlockBuilder;
-using leveldb::Comparator;
-using leveldb::CompressionType;
-using leveldb::Iterator;
-using leveldb::ReadOptions;
-using leveldb::Block;
-using leveldb::BlockContents;
-using leveldb::Cache;
 
+struct leveldb::BlockBuilder;
+
+namespace silkstore {
+using namespace leveldb;
 class SegmentBuilder;
 
 /*
@@ -39,12 +27,10 @@ class MiniRun {
 public:
     Iterator *NewIterator(const ReadOptions &);
 
-    MiniRun(const Options &options, RandomAccessFile *file, uint64_t off, uint64_t size, Block &index_block);
-
+    MiniRun(const leveldb::Options *options, RandomAccessFile *file, uint64_t off, uint64_t size, Block &index_block);
 private:
     static Iterator *BlockReader(void *, const ReadOptions &, const Slice &);
-
-    const Options &options;
+    const leveldb::Options* options;
     RandomAccessFile *file;
     uint64_t run_start_off;
     uint64_t run_size;
@@ -61,7 +47,7 @@ public:
     // Create a builder that will store the contents of the minirun it is
     // building in *file starting at file_offset.  Does not close the file.  It is up to the
     // caller to close the file after calling Finish().
-    MiniRunBuilder(const Options &options, WritableFile *file, uint64_t file_offset);
+    MiniRunBuilder(const leveldb::Options &options, WritableFile *file, uint64_t file_offset);
 
     MiniRunBuilder(const MiniRunBuilder &) = delete;
 
@@ -110,7 +96,7 @@ public:
 private:
     bool ok() const { return status().ok(); }
 
-    void WriteBlock(BlockBuilder *block, BlockHandle *handle);
+    void WriteBlock(leveldb::BlockBuilder *block, BlockHandle *handle);
 
     void WriteRawBlock(const Slice &data, CompressionType, BlockHandle *handle);
 
