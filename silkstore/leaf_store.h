@@ -5,24 +5,26 @@
 #ifndef SILKSTORE_LEAF_INDEX_H
 #define SILKSTORE_LEAF_INDEX_H
 
-#include <stdint.h>
 #include <functional>
-#include "leveldb/options.h"
-#include "leveldb/db.h"
-#include "leveldb/slice.h"
-#include "leveldb/iterator.h"
-#include "leveldb/cache.h"
-#include "table/block.h"
+#include <stdint.h>
+
 #include "db/dbformat.h"
+#include "leveldb/db.h"
+#include "leveldb/cache.h"
+#include "leveldb/iterator.h"
+#include "leveldb/options.h"
+#include "leveldb/slice.h"
+#include "table/block.h"
 
 #include "segment.h"
 
 typedef ::leveldb::DB leveldb_DB;
+
 namespace silkstore {
 // format
 //
 class MiniRunIndexEntry {
-public:
+ public:
     MiniRunIndexEntry(const Slice &data);
 
     Slice GetBlockIndexData() const;
@@ -37,7 +39,7 @@ public:
 
     static void EncodeMiniRunIndexEntry(uint32_t seg_no, uint32_t run_no, Slice block_index_data, Slice filter_data, std::string * buf);
 
-private:
+ private:
     Slice raw_data_;
     uint32_t segment_number_;
     uint32_t run_no_within_segment_;
@@ -47,7 +49,7 @@ private:
 
 
 class LeafIndexEntry {
-public:
+ public:
     LeafIndexEntry(const Slice &data = Slice());
 
     enum TraversalOrder {
@@ -61,55 +63,61 @@ public:
     std::vector<MiniRunIndexEntry> GetAllMiniRunIndexEntry(TraversalOrder order = backward) const;
 
     // Iterate over all index entries of MiniRun with given order
-    void ForEachMiniRunIndexEntry(std::function<bool(const MiniRunIndexEntry &, uint32_t)> processor,
-                                  TraversalOrder order = backward) const;
+    void ForEachMiniRunIndexEntry(
+        std::function<bool(const MiniRunIndexEntry &, uint32_t)> processor,
+        TraversalOrder order = backward) const;
 
     Slice GetRawData() const { return raw_data_; }
 
-private:
+ private:
     Slice raw_data_;
 };
 
 class LeafIndexEntryBuilder {
-public:
+ public:
     LeafIndexEntryBuilder() = delete;
 
     LeafIndexEntryBuilder(const LeafIndexEntryBuilder &) = delete;
 
     LeafIndexEntry operator=(const LeafIndexEntryBuilder &) = delete;
 
-    static Status
-    AppendMiniRunIndexEntry(const LeafIndexEntry &base,
-                            const MiniRunIndexEntry &minirun_index_entry,
-                            std::string *buf,
-                            LeafIndexEntry *new_entry);
+    static Status AppendMiniRunIndexEntry(const LeafIndexEntry &base,
+                                          const MiniRunIndexEntry &minirun_index_entry,
+                                          std::string *buf,
+                                          LeafIndexEntry *new_entry);
 
-    static Status
-    ReplaceMiniRunRange(const LeafIndexEntry &base, uint32_t start, uint32_t end, const MiniRunIndexEntry &replacement,
-                        std::string *buf,
-                        LeafIndexEntry *new_entry);
+    static Status ReplaceMiniRunRange(const LeafIndexEntry &base,
+                                      uint32_t start,
+                                      uint32_t end,
+                                      const MiniRunIndexEntry &replacement,
+                                      std::string *buf,
+                                      LeafIndexEntry *new_entry);
 };
 
-
 class LeafStore {
-public:
-    static Status
-    Open(SegmentManager *seg_manager, leveldb_DB *leaf_index, const leveldb::Options &options, const Comparator *user_cmp,
-         LeafStore **store);
+ public:
+    static Status Open(SegmentManager *seg_manager, leveldb::DB *leaf_index,
+                       const Options &options, const Comparator *user_cmp,
+                       LeafStore **store);
 
-    Status Get(const ReadOptions &options, const LookupKey &key, std::string *value);
+    Status Get(const ReadOptions &options, const LookupKey &key,
+               std::string *value);
 
     Iterator* NewIterator(const ReadOptions &options);
-
-private:
-    LeafStore(SegmentManager *seg_manager, leveldb_DB *leaf_index, const leveldb::Options &options,
-              const Comparator *user_cmp) : seg_manager_(seg_manager), leaf_index_(leaf_index), options_(options),
-                                            user_cmp_(user_cmp) {}
+ private:
+    LeafStore(SegmentManager *seg_manager, leveldb::DB *leaf_index,
+              const Options &options, const Comparator *user_cmp)
+        : seg_manager_(seg_manager),
+          leaf_index_(leaf_index),
+          options_(options),
+          user_cmp_(user_cmp) {}
 
     SegmentManager *seg_manager_;
     leveldb_DB *leaf_index_;
     const leveldb::Options options_;
     const Comparator *user_cmp_ = nullptr;
 };
+
 }
+
 #endif //SILKSTORE_LEAF_INDEX_H

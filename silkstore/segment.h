@@ -5,11 +5,11 @@
 #ifndef SILKSTORE_SEGMENT_H
 #define SILKSTORE_SEGMENT_H
 
-
 #include <stdint.h>
 
-#include "table/block.h"
 #include "leveldb/slice.h"
+#include "table/block.h"
+
 #include "silkstore/minirun.h"
 
 namespace silkstore {
@@ -17,7 +17,7 @@ namespace silkstore {
 static std::string MakeSegmentFileName(uint32_t segment_id);
 
 class SegmentBuilder {
-public:
+ public:
     // Create a builder that will store the contents of the table it is
     // building in *file.  Does not close the file.  It is up to the
     // caller to close the file after calling Finish().
@@ -66,8 +66,7 @@ public:
     // Finish() call, returns the size of the final generated file.
     uint64_t FileSize() const;
 
-private:
-
+ private:
     bool ok() const { return status().ok(); }
 
     // Advanced operation: flush any buffered key/value pairs to file.
@@ -90,9 +89,10 @@ private:
 *     n
 */
 class Segment {
-public:
-    static Status
-    Open(const leveldb::Options &options, uint32_t segment_id, RandomAccessFile *file, uint64_t file_size, Segment **segment);
+ public:
+    static Status Open(const Options &options, uint32_t segment_id,
+                       RandomAccessFile *file, uint64_t file_size,
+                       Segment **segment);
 
     ~Segment();
 
@@ -112,7 +112,7 @@ public:
     // This function is mainly used in garbage collection.
     void ForEachRun(std::function<void(int run_no, bool in_invalidated_runs)> processor);
 
-private:
+ private:
     struct Rep;
     Rep *rep_;
 
@@ -120,7 +120,7 @@ private:
 };
 
 class SegmentManager {
-public:
+ public:
     SegmentManager(const SegmentManager &) = delete;
 
     SegmentManager(const SegmentManager &&) = delete;
@@ -129,7 +129,9 @@ public:
 
     SegmentManager &operator=(const SegmentManager &&) = delete;
 
-    static Status OpenManager(const leveldb::Options &options, const std::string &dbname, SegmentManager **manager_ptr);
+    static Status OpenManager(const Options &options,
+                              const std::string &dbname,
+                              SegmentManager **manager_ptr);
 
     Status OpenSegment(uint32_t seg_id, Segment **seg_ptr);
 
@@ -137,7 +139,7 @@ public:
 
     size_t ApproximateSize();
 
-private:
+ private:
     struct Rep;
     Rep *rep_;
 

@@ -1,12 +1,14 @@
 //
 // Created by zxjcarrot on 2019-07-15.
 //
-#include "silkstore/util.h"
+
 #include "leaf_store.h"
 
-#include "util/coding.h"
 #include "table/filter_block.h"
 #include "table/format.h"
+#include "util/coding.h"
+
+#include "silkstore/util.h"
 
 namespace silkstore {
 
@@ -53,7 +55,8 @@ uint32_t LeafIndexEntry::GetNumMiniRuns() const {
     return leveldb::DecodeFixed32(p);
 }
 
-std::vector<MiniRunIndexEntry> LeafIndexEntry::GetAllMiniRunIndexEntry(TraversalOrder order) const {
+std::vector<MiniRunIndexEntry> LeafIndexEntry::GetAllMiniRunIndexEntry(
+        TraversalOrder order) const {
     std::vector<MiniRunIndexEntry> res;
     auto processor = [&res](const MiniRunIndexEntry &entry, uint32_t) {
         res.push_back(entry);
@@ -63,8 +66,9 @@ std::vector<MiniRunIndexEntry> LeafIndexEntry::GetAllMiniRunIndexEntry(Traversal
     return res;
 }
 
-void LeafIndexEntry::ForEachMiniRunIndexEntry(std::function<bool(const MiniRunIndexEntry &, uint32_t)> processor,
-                                              TraversalOrder order) const {
+void LeafIndexEntry::ForEachMiniRunIndexEntry(
+        std::function<bool(const MiniRunIndexEntry &, uint32_t)> processor,
+        TraversalOrder order) const {
     auto num_entries = GetNumMiniRuns();
     if (num_entries == 0)
         return;
@@ -104,11 +108,11 @@ void LeafIndexEntry::ForEachMiniRunIndexEntry(std::function<bool(const MiniRunIn
     }
 }
 
-Status
-LeafIndexEntryBuilder::AppendMiniRunIndexEntry(const LeafIndexEntry &base,
-                                               const MiniRunIndexEntry &minirun_index_entry,
-                                               std::string *buf,
-                                               LeafIndexEntry *new_entry) {
+Status LeafIndexEntryBuilder::AppendMiniRunIndexEntry(
+        const LeafIndexEntry &base,
+        const MiniRunIndexEntry &minirun_index_entry,
+        std::string *buf,
+        LeafIndexEntry *new_entry) {
     buf->append(base.GetRawData().data(), base.GetRawData().size());
     if (buf->size()) {
         // Erase footer (# of minirun index entries).
@@ -122,11 +126,11 @@ LeafIndexEntryBuilder::AppendMiniRunIndexEntry(const LeafIndexEntry &base,
     return Status::OK();
 }
 
-Status
-LeafIndexEntryBuilder::ReplaceMiniRunRange(const LeafIndexEntry &base, uint32_t start, uint32_t end,
-                                           const MiniRunIndexEntry &replacement,
-                                           std::string *buf,
-                                           LeafIndexEntry *new_entry) {
+Status LeafIndexEntryBuilder::ReplaceMiniRunRange(const LeafIndexEntry &base,
+                                                  uint32_t start, uint32_t end,
+                                                  const MiniRunIndexEntry &replacement,
+                                                  std::string *buf,
+                                                  LeafIndexEntry *new_entry) {
     if (start > base.GetNumMiniRuns() || end > base.GetNumMiniRuns())
         return Status::InvalidArgument(
                 "[start, end] not within bound of [0, " + std::to_string(base.GetNumMiniRuns()) + "]");
@@ -155,6 +159,7 @@ LeafIndexEntryBuilder::ReplaceMiniRunRange(const LeafIndexEntry &base, uint32_t 
 
 Iterator* LeafStore::NewIterator(const ReadOptions &options) {
     // TODO: implment iterator interface
+    return nullptr;
 }
 
 Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::string *value) {
@@ -217,7 +222,9 @@ Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::str
 }
 
 
-Status LeafStore::Open(SegmentManager* seg_manager, leveldb::DB * leaf_index, const Options & options, const Comparator * user_cmp, LeafStore ** store) {
+Status LeafStore::Open(SegmentManager* seg_manager, leveldb::DB * leaf_index,
+                       const Options & options, const Comparator * user_cmp,
+                       LeafStore ** store) {
     *store = new LeafStore(seg_manager, leaf_index, options, user_cmp);
     return Status::OK();
 }

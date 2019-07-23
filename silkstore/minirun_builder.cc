@@ -1,9 +1,9 @@
 //
 // Created by zxjcarrot on 2019-07-04.
 //
+
 #include <string>
 
-#include "table/two_level_iterator.h"
 #include "leveldb/comparator.h"
 #include "leveldb/env.h"
 #include "leveldb/filter_policy.h"
@@ -11,13 +11,15 @@
 #include "table/block_builder.h"
 #include "table/filter_block.h"
 #include "table/format.h"
+#include "table/two_level_iterator.h"
 #include "util/coding.h"
 #include "util/crc32c.h"
 
-#include "silkstore/minirun.h"
 #include "silkstore/segment.h"
+#include "silkstore/minirun.h"
 
 namespace silkstore {
+
 using namespace leveldb;
 
 struct MiniRunBuilder::Rep {
@@ -52,23 +54,25 @@ struct MiniRunBuilder::Rep {
     Slice finished_filter_block;
 
     Rep(const Options &opt, WritableFile *f, uint64_t offset = 0)
-            : options(opt),
-              index_block_options(opt),
-              file(f),
-              start_offset(offset),
-              offset(offset),
-              data_block(&options),
-              index_block(&index_block_options),
-              num_entries(0),
-              filter_block(opt.filter_policy == nullptr ? nullptr
-                                                        : new FilterBlockBuilder(opt.filter_policy)),
-              pending_index_entry(false) {
+        : options(opt),
+          index_block_options(opt),
+          file(f),
+          start_offset(offset),
+          offset(offset),
+          data_block(&options),
+          index_block(&index_block_options),
+          num_entries(0),
+          filter_block((opt.filter_policy == nullptr)
+            ? nullptr : new FilterBlockBuilder(opt.filter_policy)),
+          pending_index_entry(false) {
         index_block_options.block_restart_interval = 1;
     }
 };
 
 
-MiniRunBuilder::MiniRunBuilder(const Options &options, WritableFile *file, uint64_t file_offset)
+MiniRunBuilder::MiniRunBuilder(const Options &options,
+                               WritableFile *file,
+                               uint64_t file_offset)
         : rep_(new Rep(options, file, file_offset)) {
     if (rep_->filter_block != nullptr) {
         rep_->filter_block->StartBlock(0);

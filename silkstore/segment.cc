@@ -1,6 +1,9 @@
 //
 // Created by zxjcarrot on 2019-06-29.
 //
+
+#include "silkstore/segment.h"
+
 #include <cmath>
 #include <string>
 #include <unordered_set>
@@ -17,8 +20,6 @@
 #include "util/crc32c.h"
 
 #include "silkstore/minirun.h"
-#include "silkstore/segment.h"
-
 
 namespace silkstore {
 
@@ -45,7 +46,8 @@ Status Segment::InvalidateMiniRun(const int &run_no) {
     leveldb::PutVarint32(&r->invalidated_runs, run_no);
 }
 
-Status Segment::Open(const Options &options, uint32_t segment_id, RandomAccessFile *file, uint64_t file_size,
+Status Segment::Open(const Options &options, uint32_t segment_id,
+                     RandomAccessFile *file, uint64_t file_size,
                      silkstore::Segment **segment) {
     Rep *r = new Rep;
     r->file = file;
@@ -121,7 +123,7 @@ static bool GetSegmentFileInfo(const std::string & filename, uint32_t & seg_id) 
     return false;
 }
 
-Status SegmentManager::NewSegmentBuilder(uint32_t *seg_id, silkstore::SegmentBuilder **seg_builder_ptr) {
+Status SegmentManager::NewSegmentBuilder(uint32_t *seg_id, SegmentBuilder **seg_builder_ptr) {
     Rep*r = rep_;
     leveldb::Env* default_env = leveldb::Env::Default();
     std::lock_guard<std::mutex> g(r->mutex);
@@ -138,7 +140,7 @@ Status SegmentManager::NewSegmentBuilder(uint32_t *seg_id, silkstore::SegmentBui
     return Status::OK();
 }
 
-Status SegmentManager::OpenSegment(uint32_t seg_id, silkstore::Segment **seg_ptr) {
+Status SegmentManager::OpenSegment(uint32_t seg_id, Segment **seg_ptr) {
     Rep* r = rep_;
     r->mutex.lock();
     auto filepath_it = r->segment_filepaths.find(seg_id);
@@ -175,7 +177,9 @@ Status SegmentManager::OpenSegment(uint32_t seg_id, silkstore::Segment **seg_ptr
     return Status::OK();
 }
 
-Status SegmentManager::OpenManager(const Options& options, const std::string& dbname, SegmentManager**manager_ptr) {
+Status SegmentManager::OpenManager(const Options& options,
+                                   const std::string& dbname,
+                                   SegmentManager** manager_ptr) {
     leveldb::Env* default_env = leveldb::Env::Default();
     if (default_env->FileExists(dbname) == false) {
         if (options.create_if_missing == false) {

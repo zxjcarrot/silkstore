@@ -23,11 +23,11 @@
 #include "leaf_store.h"
 
 namespace silkstore {
+
 using namespace leveldb;
 
-
 class SilkStore : public DB {
-public:
+ public:
     SilkStore(const Options &options, const std::string &dbname);
 
     virtual ~SilkStore();
@@ -81,7 +81,7 @@ public:
     Status OpenIndex(const Options &index_options);
 
     void BackgroundCompaction();
-private:
+ private:
 
     friend class DB;
 

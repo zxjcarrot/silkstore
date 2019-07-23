@@ -6,17 +6,20 @@
 #define SILKSTORE_MINIRUN_H
 
 #include <stdint.h>
-#include "leveldb/slice.h"
-#include "leveldb/iterator.h"
+
 #include "leveldb/cache.h"
 #include "leveldb/env.h"
+#include "leveldb/iterator.h"
+#include "leveldb/slice.h"
 #include "table/block.h"
-
+#include "table/block_builder.h"
 
 struct leveldb::BlockBuilder;
 
 namespace silkstore {
+
 using namespace leveldb;
+
 class SegmentBuilder;
 
 /*
@@ -24,11 +27,12 @@ class SegmentBuilder;
  * one or more leveldb data blocks. It is the unit of update to a leaf.
  */
 class MiniRun {
-public:
+ public:
     Iterator *NewIterator(const ReadOptions &);
 
-    MiniRun(const leveldb::Options *options, RandomAccessFile *file, uint64_t off, uint64_t size, Block &index_block);
-private:
+    MiniRun(const leveldb::Options &options, RandomAccessFile *file,
+            uint64_t off, uint64_t size, Block &index_block);
+ private:
     static Iterator *BlockReader(void *, const ReadOptions &, const Slice &);
     const leveldb::Options* options;
     RandomAccessFile *file;
@@ -43,7 +47,7 @@ private:
 typedef uint64_t MiniRunHandle;
 
 class MiniRunBuilder {
-public:
+ public:
     // Create a builder that will store the contents of the minirun it is
     // building in *file starting at file_offset.  Does not close the file.  It is up to the
     // caller to close the file after calling Finish().
@@ -93,7 +97,7 @@ public:
     // Finish() call, returns the size of the final generated file.
     uint64_t FileSize() const;
 
-private:
+ private:
     bool ok() const { return status().ok(); }
 
     void WriteBlock(leveldb::BlockBuilder *block, BlockHandle *handle);
@@ -104,5 +108,6 @@ private:
     Rep *rep_;
 };
 
-}
+} // namespace silkstore
+
 #endif //SILKSTORE_MINIRUN_H

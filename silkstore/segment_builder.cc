@@ -1,6 +1,7 @@
 //
 // Created by zxjcarrot on 2019-07-02.
 //
+
 #include <string>
 
 #include "leveldb/comparator.h"
@@ -13,8 +14,8 @@
 #include "util/coding.h"
 #include "util/crc32c.h"
 
-#include "silkstore/minirun.h"
 #include "silkstore/segment.h"
+#include "silkstore/minirun.h"
 
 namespace silkstore {
 
@@ -30,15 +31,16 @@ struct SegmentBuilder::Rep {
     std::string src_segment_filepath;
     std::string target_segment_filepath;
 
-    Rep(const Options &opt, const std::string &src_segment_filepath, const std::string &target_segment_filepath,
-        WritableFile *f)
-            : options(opt),
-              file(f),
-              num_entries(0),
-              run_builder(new MiniRunBuilder(opt, f, 0)),
-              run_started(false), prev_file_size(0), src_segment_filepath(src_segment_filepath),
-              target_segment_filepath(target_segment_filepath) {
-    }
+    Rep(const Options &opt, const std::string &src_segment_filepath,
+        const std::string &target_segment_filepath, WritableFile *f)
+        : options(opt),
+          file(f),
+          num_entries(0),
+          run_builder(new MiniRunBuilder(opt, f, 0)),
+          run_started(false),
+          prev_file_size(0),
+          src_segment_filepath(src_segment_filepath),
+          target_segment_filepath(target_segment_filepath) {}
 
     ~Rep() {
         delete file;

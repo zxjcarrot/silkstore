@@ -64,7 +64,7 @@ class DBImpl : public DB {
   // bytes.
   void RecordReadSample(Slice key);
 
- private:
+ protected:
   friend class DB;
   struct CompactionState;
   struct Writer;

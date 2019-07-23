@@ -4,9 +4,10 @@
 
 #ifndef SILKSTORE_UTIL_H
 #define SILKSTORE_UTIL_H
-#include <functional>
-namespace silkstore {
 
+#include <functional>
+
+namespace silkstore {
 
 class DeferCode {
 public:
@@ -18,4 +19,4 @@ private:
 
 }
 
-#endif //SILKSTORE_UTIL_H
+#endif // SILKSTORE_UTIL_H
