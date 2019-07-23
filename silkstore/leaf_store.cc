@@ -23,6 +23,15 @@ MiniRunIndexEntry::MiniRunIndexEntry(const Slice &data) : raw_data_(data) {
     filter_data_len_ = leveldb::DecodeFixed32(p);
 }
 
+void MiniRunIndexEntry::EncodeMiniRunIndexEntry(uint32_t seg_no, uint32_t run_no, Slice block_index_data, Slice filter_data, std::string * buf) {
+    PutFixed32(buf, seg_no);
+    PutFixed32(buf, run_no);
+    PutFixed32(buf, block_index_data.size());
+    PutFixed32(buf, filter_data.size());
+    buf->append(block_index_data.data(), block_index_data.size());
+    buf->append(filter_data.data(), filter_data.size());
+}
+
 Slice MiniRunIndexEntry::GetBlockIndexData() const {
     const char *p = raw_data_.data() + 16;
     return Slice(p, block_index_data_len_);
@@ -100,7 +109,7 @@ LeafIndexEntryBuilder::AppendMiniRunIndexEntry(const LeafIndexEntry &base,
                                                const MiniRunIndexEntry &minirun_index_entry,
                                                std::string *buf,
                                                LeafIndexEntry *new_entry) {
-    *buf = std::string(base.GetRawData().data(), base.GetRawData().size());
+    buf->append(base.GetRawData().data(), base.GetRawData().size());
     if (buf->size()) {
         // Erase footer (# of minirun index entries).
         buf->resize(buf->size() - 4);

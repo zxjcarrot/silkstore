@@ -35,6 +35,7 @@ public:
 
     Slice GetRawData() const { return raw_data_; }
 
+    static void EncodeMiniRunIndexEntry(uint32_t seg_no, uint32_t run_no, Slice block_index_data, Slice filter_data, std::string * buf);
 
 private:
     Slice raw_data_;

@@ -95,18 +95,11 @@ struct LEVELDB_EXPORT Options {
     // Default: 4MB
   size_t max_memtbl_capacity;
 
-    // The maximum amount of data to build up in memory (backed by an unsorted log
-    // on disk) before converting to a sorted on-disk file.
-    //
-    // Larger values increase performance, especially during bulk loads.
-    // Up to two write buffers may be held in memory at the same time,
-    // so you may wish to adjust this parameter to control memory usage.
-    // Also, a larger write buffer will result in a longer recovery time
-    // the next time the database is opened.
-    //
-    // Default: 4MB
-    size_t memtbl_to_L0_ratio;
+  size_t memtbl_to_L0_ratio;
 
+  size_t segment_file_size_thresh;
+
+  size_t leaf_max_num_miniruns;
 
     // Number of open files that can be used by the DB.  You may need to
   // increase this if your database has a large working set (budget
