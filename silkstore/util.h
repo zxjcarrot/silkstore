@@ -7,6 +7,7 @@
 
 #include <functional>
 
+namespace leveldb {
 namespace silkstore {
 
 class DeferCode {
@@ -17,6 +18,7 @@ private:
     std::function<void()> code;
 };
 
-}
+}  // namespace silkstore
+}  // namespace leveldb
 
 #endif // SILKSTORE_UTIL_H

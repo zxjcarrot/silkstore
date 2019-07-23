@@ -10,19 +10,19 @@
 
 #include "silkstore/util.h"
 
+namespace leveldb {
 namespace silkstore {
-
 
 MiniRunIndexEntry::MiniRunIndexEntry(const Slice &data) : raw_data_(data) {
     assert(raw_data_.size() >= 16);
     const char *p = raw_data_.data();
-    segment_number_ = leveldb::DecodeFixed32(p);
+    segment_number_ = DecodeFixed32(p);
     p += 4;
-    run_no_within_segment_ = leveldb::DecodeFixed32(p);
+    run_no_within_segment_ = DecodeFixed32(p);
     p += 4;
-    block_index_data_len_ = leveldb::DecodeFixed32(p);
+    block_index_data_len_ = DecodeFixed32(p);
     p += 4;
-    filter_data_len_ = leveldb::DecodeFixed32(p);
+    filter_data_len_ = DecodeFixed32(p);
 }
 
 void MiniRunIndexEntry::EncodeMiniRunIndexEntry(uint32_t seg_no, uint32_t run_no, Slice block_index_data, Slice filter_data, std::string * buf) {
@@ -52,7 +52,7 @@ uint32_t LeafIndexEntry::GetNumMiniRuns() const {
     if (raw_data_.empty())
         return 0;
     const char *p = raw_data_.data() + raw_data_.size() - 4;
-    return leveldb::DecodeFixed32(p);
+    return DecodeFixed32(p);
 }
 
 std::vector<MiniRunIndexEntry> LeafIndexEntry::GetAllMiniRunIndexEntry(
@@ -79,7 +79,7 @@ void LeafIndexEntry::ForEachMiniRunIndexEntry(
         for (int i = num_entries - 1; i >= 0; ++i) {
             p -= 4;
             assert(p >= raw_data_.data());
-            uint32_t entry_size = leveldb::DecodeFixed32(p);
+            uint32_t entry_size = DecodeFixed32(p);
             p -= entry_size;
             assert(p >= raw_data_.data());
             MiniRunIndexEntry index_entry = MiniRunIndexEntry(Slice(p, entry_size));
@@ -93,7 +93,7 @@ void LeafIndexEntry::ForEachMiniRunIndexEntry(
         for (int i = num_entries - 1; i >= 0; --i) {
             p -= 4;
             assert(p >= raw_data_.data());
-            uint32_t entry_size = leveldb::DecodeFixed32(p);
+            uint32_t entry_size = DecodeFixed32(p);
             p -= entry_size;
             assert(p >= raw_data_.data());
             MiniRunIndexEntry index_entry = MiniRunIndexEntry(Slice(p, entry_size));
@@ -222,11 +222,12 @@ Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::str
 }
 
 
-Status LeafStore::Open(SegmentManager* seg_manager, leveldb::DB * leaf_index,
+Status LeafStore::Open(SegmentManager* seg_manager, DB * leaf_index,
                        const Options & options, const Comparator * user_cmp,
                        LeafStore ** store) {
     *store = new LeafStore(seg_manager, leaf_index, options, user_cmp);
     return Status::OK();
 }
 
-}
+}  // namespace silkstore
+}  // namespace leveldb

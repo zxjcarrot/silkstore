@@ -18,8 +18,7 @@
 
 #include "segment.h"
 
-typedef ::leveldb::DB leveldb_DB;
-
+namespace leveldb {
 namespace silkstore {
 // format
 //
@@ -96,7 +95,7 @@ class LeafIndexEntryBuilder {
 
 class LeafStore {
  public:
-    static Status Open(SegmentManager *seg_manager, leveldb::DB *leaf_index,
+    static Status Open(SegmentManager *seg_manager, DB *leaf_index,
                        const Options &options, const Comparator *user_cmp,
                        LeafStore **store);
 
@@ -105,7 +104,7 @@ class LeafStore {
 
     Iterator* NewIterator(const ReadOptions &options);
  private:
-    LeafStore(SegmentManager *seg_manager, leveldb::DB *leaf_index,
+    LeafStore(SegmentManager *seg_manager, DB *leaf_index,
               const Options &options, const Comparator *user_cmp)
         : seg_manager_(seg_manager),
           leaf_index_(leaf_index),
@@ -113,11 +112,12 @@ class LeafStore {
           user_cmp_(user_cmp) {}
 
     SegmentManager *seg_manager_;
-    leveldb_DB *leaf_index_;
-    const leveldb::Options options_;
+    DB *leaf_index_;
+    const Options options_;
     const Comparator *user_cmp_ = nullptr;
 };
 
-}
+}  // namespace silkstore
+}  // namespace leveldb
 
 #endif //SILKSTORE_LEAF_INDEX_H

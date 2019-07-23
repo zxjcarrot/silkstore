@@ -19,10 +19,8 @@
 #include "silkstore/segment.h"
 #include "silkstore/minirun.h"
 
+namespace leveldb {
 namespace silkstore {
-
-using namespace leveldb;
-using namespace leveldb::crc32c;
 
 MiniRun::MiniRun(const Options &options, RandomAccessFile *file,
                  uint64_t off, uint64_t size, Block &index_block)
@@ -110,10 +108,11 @@ Iterator *MiniRun::BlockReader(void *arg,
     return iter;
 }
 
-Iterator *MiniRun::NewIterator(const leveldb::ReadOptions &read_options) {
-    return leveldb::NewTwoLevelIterator(
+Iterator *MiniRun::NewIterator(const ReadOptions &read_options) {
+    return NewTwoLevelIterator(
             index_block.NewIterator(this->options->comparator),
             &MiniRun::BlockReader, const_cast<MiniRun *>(this), read_options);
 }
 
-} // namespace silkstore
+}  // namespace silkstore
+}  // namespace leveldb

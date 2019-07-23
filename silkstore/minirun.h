@@ -14,11 +14,8 @@
 #include "table/block.h"
 #include "table/block_builder.h"
 
-struct leveldb::BlockBuilder;
-
+namespace leveldb {
 namespace silkstore {
-
-using namespace leveldb;
 
 class SegmentBuilder;
 
@@ -30,11 +27,11 @@ class MiniRun {
  public:
     Iterator *NewIterator(const ReadOptions &);
 
-    MiniRun(const leveldb::Options &options, RandomAccessFile *file,
+    MiniRun(const Options &options, RandomAccessFile *file,
             uint64_t off, uint64_t size, Block &index_block);
  private:
     static Iterator *BlockReader(void *, const ReadOptions &, const Slice &);
-    const leveldb::Options* options;
+    const Options* options;
     RandomAccessFile *file;
     uint64_t run_start_off;
     uint64_t run_size;
@@ -51,7 +48,7 @@ class MiniRunBuilder {
     // Create a builder that will store the contents of the minirun it is
     // building in *file starting at file_offset.  Does not close the file.  It is up to the
     // caller to close the file after calling Finish().
-    MiniRunBuilder(const leveldb::Options &options, WritableFile *file, uint64_t file_offset);
+    MiniRunBuilder(const Options &options, WritableFile *file, uint64_t file_offset);
 
     MiniRunBuilder(const MiniRunBuilder &) = delete;
 
@@ -100,7 +97,7 @@ class MiniRunBuilder {
  private:
     bool ok() const { return status().ok(); }
 
-    void WriteBlock(leveldb::BlockBuilder *block, BlockHandle *handle);
+    void WriteBlock(BlockBuilder *block, BlockHandle *handle);
 
     void WriteRawBlock(const Slice &data, CompressionType, BlockHandle *handle);
 
@@ -108,6 +105,7 @@ class MiniRunBuilder {
     Rep *rep_;
 };
 
-} // namespace silkstore
+}  // namespace silkstore
+}  // namespace leveldb
 
 #endif //SILKSTORE_MINIRUN_H

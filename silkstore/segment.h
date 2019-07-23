@@ -12,6 +12,7 @@
 
 #include "silkstore/minirun.h"
 
+namespace leveldb {
 namespace silkstore {
 
 static std::string MakeSegmentFileName(uint32_t segment_id);
@@ -21,7 +22,7 @@ class SegmentBuilder {
     // Create a builder that will store the contents of the table it is
     // building in *file.  Does not close the file.  It is up to the
     // caller to close the file after calling Finish().
-    SegmentBuilder(const leveldb::Options &options, const std::string &src_segment_filepath,
+    SegmentBuilder(const Options &options, const std::string &src_segment_filepath,
                    const std::string &target_segment_filepath, WritableFile *file);
 
     SegmentBuilder(const SegmentBuilder &) = delete;
@@ -146,5 +147,7 @@ class SegmentManager {
     SegmentManager(Rep *r) : rep_(r) {}
 };
 
-}
+}  // namespace silkstore
+}  // namespace leveldb
+
 #endif //SILKSTORE_SEGMENT_H

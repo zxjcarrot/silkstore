@@ -17,6 +17,7 @@
 #include "silkstore/segment.h"
 #include "silkstore/minirun.h"
 
+namespace leveldb {
 namespace silkstore {
 
 struct SegmentBuilder::Rep {
@@ -110,16 +111,16 @@ Status SegmentBuilder::Finish() {
     std::string buf;
 
     for (auto handle : r->run_handles) {
-        leveldb::PutFixed64(&buf, handle);
+        PutFixed64(&buf, handle);
     }
     size_t buf_size = buf.size();
     r->status = r->file->Append(buf);
     if (!ok()) return status();
     buf.clear();
-    leveldb::PutFixed64(&buf, buf_size);
+    PutFixed64(&buf, buf_size);
     r->status = r->file->Append(buf);
 
-    return leveldb::Env::Default()->RenameFile(r->src_segment_filepath, r->target_segment_filepath);
+    return Env::Default()->RenameFile(r->src_segment_filepath, r->target_segment_filepath);
 }
 
 uint64_t SegmentBuilder::NumEntries() const {
@@ -130,4 +131,5 @@ uint64_t SegmentBuilder::FileSize() const {
     return rep_->run_builder->FileSize();
 }
 
-}
+}  // namespace silkstore
+}  // namespace leveldb

@@ -1,17 +1,19 @@
 //
 // Created by zxjcarrot on 2019-07-05.
 //
-#include <db/log_reader.h>
-#include "leveldb/write_batch.h"
+
 #include "db/filename.h"
+#include "db/log_reader.h"
 #include "db/memtable.h"
 #include "db/write_batch_internal.h"
+#include "leveldb/write_batch.h"
 #include "util/mutexlock.h"
-#include "silkstore/util.h"
-#include "silkstore/silkstore_impl.h"
 
+#include "silkstore/silkstore_impl.h"
+#include "silkstore/util.h"
+
+namespace leveldb {
 namespace silkstore {
-using namespace leveldb;
 
 const std::string kCURRENTFilename = "CURRENT";
 
@@ -75,7 +77,7 @@ SilkStore::SilkStore(const Options &raw_options, const std::string &dbname)
 
 Status SilkStore::OpenIndex(const Options &index_options) {
     assert(leaf_index_ == nullptr);
-    return leveldb::DB::Open(index_options, dbname_ + "/leaf_index", &leaf_index_);
+    return DB::Open(index_options, dbname_ + "/leaf_index", &leaf_index_);
 }
 
 
@@ -235,13 +237,16 @@ Status SilkStore::Recover() {
 
 // Convenience methods
 Status SilkStore::Put(const WriteOptions& o, const Slice& key, const Slice& val) {
-    return DB::Put(o, key, val);
+    return Status::NotSupported("Not Implemented");
 }
 
 Status SilkStore::Delete(const WriteOptions& options, const Slice& key) {
-    return DB::Delete(options, key);
+    return Status::NotSupported("Not Implemented");
 }
 
+Iterator* SilkStore::NewIterator(const ReadOptions& ropts) {
+    return nullptr;
+}
 
 // REQUIRES: mutex_ is held
 // REQUIRES: this thread is currently at the front of the writer queue
@@ -598,4 +603,5 @@ void SilkStore::BackgroundCompaction() {
     }
 }
 
-}
+}  // namespace silkstore
+}  // namespace leveldb
