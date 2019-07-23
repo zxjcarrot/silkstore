@@ -7,6 +7,8 @@
 #include "db/memtable.h"
 #include "db/write_batch_internal.h"
 #include "util/mutexlock.h"
+#include "table/merger.h"
+
 #include "silkstore/util.h"
 #include "silkstore/silkstore_impl.h"
 
@@ -545,6 +547,7 @@ void SilkStore::BackgroundCompaction() {
         LeafIndexEntry leaf_index_entry(iit->value());
         if (leaf_index_entry.GetNumMiniRuns() >= options_.leaf_max_num_miniruns) {
             // TODO: perform leaf split or in-leaf compaction
+
         } else {
             // Build up a minirun of key value payloads
             s = seg_builder->StartMiniRun();

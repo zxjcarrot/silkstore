@@ -5,7 +5,8 @@
 #ifndef SILKSTORE_LEAF_INDEX_H
 #define SILKSTORE_LEAF_INDEX_H
 
-#include <stdint.h>
+#include <cstdint>
+#include <climits>
 #include <functional>
 #include "leveldb/options.h"
 #include "leveldb/db.h"
@@ -101,6 +102,10 @@ public:
 
     Iterator* NewIterator(const ReadOptions &options);
 
+    Iterator *
+    NewIteratorForLeaf(const ReadOptions &options, const LeafIndexEntry &leaf_index_entry, Status &s,
+                       uint32_t start_minirun_no = 0,
+                       uint32_t end_minirun_no = std::numeric_limits<uint32_t>::max());
 private:
     LeafStore(SegmentManager *seg_manager, leveldb_DB *leaf_index, const leveldb::Options &options,
               const Comparator *user_cmp) : seg_manager_(seg_manager), leaf_index_(leaf_index), options_(options),

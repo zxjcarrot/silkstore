@@ -7,6 +7,7 @@
 #include "util/coding.h"
 #include "table/filter_block.h"
 #include "table/format.h"
+#include "table/merger.h"
 
 namespace silkstore {
 
@@ -216,8 +217,53 @@ Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::str
     return s;
 }
 
+static void NewIteratorForLeafCleanupFunc(void *arg1, void *) {
+    delete static_cast<MiniRun *>(arg1);
+}
 
-Status LeafStore::Open(SegmentManager* seg_manager, leveldb::DB * leaf_index, const Options & options, const Comparator * user_cmp, LeafStore ** store) {
+Iterator *LeafStore::NewIteratorForLeaf(const ReadOptions &options, const LeafIndexEntry &leaf_index_entry, Status &s,
+                                        uint32_t start_minirun_no, uint32_t end_minirun_no) {
+    s = Status::OK();
+    std::vector<Iterator *> iters;
+    std::vector<MiniRun *> runs;
+    iters.reserve(leaf_index_entry.GetNumMiniRuns());
+    runs.reserve(leaf_index_entry.GetNumMiniRuns());
+    auto processor = [&, this](const MiniRunIndexEntry &minirun_index_entry, uint32_t run_no) -> bool {
+        if (run_no > end_minirun_no) {
+            return true; // early return
+        }
+
+        if (start_minirun_no <= run_no && run_no <= end_minirun_no) {
+            uint32_t seg_no = minirun_index_entry.GetSegmentNumber();
+            Segment *seg = nullptr;
+            s = seg_manager_->OpenSegment(seg_no, &seg);
+            if (!s.ok())
+                return true; // error, early return
+            MiniRun *run;
+            Block index_block(BlockContents{minirun_index_entry.GetBlockIndexData(), false, false});
+            s = seg->OpenMiniRun(run_no, index_block, &run);
+            if (!s.ok())
+                return true; // error, early return
+            Iterator *iter = run->NewIterator(options);
+            iters.push_back(iter);
+            runs.push_back(run);
+        }
+
+        return false;
+    };
+    leaf_index_entry.ForEachMiniRunIndexEntry(processor, LeafIndexEntry::TraversalOrder::forward);
+    if (s.ok()) {
+        return nullptr;
+    }
+    // Destroy miniruns opened when iterator is deleted by MergingIterator
+    for (int i = 0; i < iters.size(); ++i) {
+        iters[i]->RegisterCleanup(NewIteratorForLeafCleanupFunc, runs[i], nullptr);
+    }
+    return NewMergingIterator(options_.comparator, &iters[0], iters.size());
+}
+
+Status LeafStore::Open(SegmentManager *seg_manager, leveldb::DB *leaf_index, const Options &options,
+                       const Comparator *user_cmp, LeafStore **store) {
     *store = new LeafStore(seg_manager, leaf_index, options, user_cmp);
     return Status::OK();
 }
