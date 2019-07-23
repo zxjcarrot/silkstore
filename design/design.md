@@ -79,23 +79,21 @@ Leaf Index，需要提供几种功能：
 * Merge时，可以更新一个leaf索引项信息。
 
 初步考虑，将Leaf索引信息存储在leveldb/rocksdb中，因为它们提供了seek/scan等核心功能。
-###### Leaf Index Entry Format
+###### LeafIndexEntry格式
+LeafIndexEntry是leaf索引项，以(max_key, index_entry_data)的形式存储在leveldb/rocksdb中。其中index_entry_data反序列化后的格式如下：
 ```text
-max_key_len
-max_key
-num_miniruns
-[pos of minirun 1]
-[pos of minirun 2]
-...
-[pos of minirun num_miniruns]
-[block index 1]
-[block index 2]
-...
-[block index num_miniruns]
-[filter 1]
-[filter 2]
-...
-[filter num_miniruns]
+MiniRunIndexEntry minirun_index_entries[num_miniruns]: minirun的索引项内容，一个leaf含有num_miniruns个项
+uint32_t num_miniruns : 该leaf含有的minirun数量
+```
+minirun_index_entries存储的entry是按照minirun的写入顺序排序的，所以执行点查询的时候一般是从后往前遍历该数组。
+###### MiniRunIndexEntry格式
+```text
+uint32_t segment_no: segment文件编号
+uint32_t run_no: 该run在segment文件中是第几个run
+uint32_t filter_data_len: filter数据块长度
+uint32_t block_index_data_len: block_index数据块长度
+char filter_data[filter_data_len]： filter数据块
+char block_index [block_index_data_len]： block index数据块
 ```
 ### 引用
 1. Mendel Rosenblum and John K. Ousterhout. 1992. *The design and implementation of a log-structured file system*. ACM Trans. Comput. Syst. 10, 1 (February 1992), 26-52.

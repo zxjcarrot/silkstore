@@ -211,5 +211,4 @@ Status SegmentManager::OpenManager(const Options& options, const std::string& db
     return Status::OK();
 }
 
-void Silkstore::
 }

@@ -21,6 +21,8 @@
 namespace silkstore {
 using namespace leveldb;
 
+// format
+//
 class MiniRunIndexEntry {
 public:
     MiniRunIndexEntry(const Slice &data);

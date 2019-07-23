@@ -70,7 +70,7 @@ void LeafIndexEntry::ForEachMiniRunIndexEntry(std::function<bool(const MiniRunIn
             p -= entry_size;
             assert(p >= raw_data_.data());
             MiniRunIndexEntry index_entry = MiniRunIndexEntry(Slice(p, entry_size));
-            bool early_return = processor(index_entry, num_entries - i, seg_no);
+            bool early_return = processor(index_entry, num_entries - i);
             if (early_return)
                 return;
         }
@@ -204,7 +204,6 @@ Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::str
     };
 
     index_entry.ForEachMiniRunIndexEntry(processor, LeafIndexEntry::TraversalOrder::backward);
-    delete it;
     return s;
 }
 
