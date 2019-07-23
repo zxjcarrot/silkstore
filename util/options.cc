@@ -6,7 +6,9 @@
 
 #include "leveldb/comparator.h"
 #include "leveldb/env.h"
-
+#ifndef MEM_CAPACITY
+#define MEM_CAPACITY (128* (1UL<<32))
+#endif
 namespace leveldb {
 
 Options::Options()
@@ -17,6 +19,8 @@ Options::Options()
       env(Env::Default()),
       info_log(nullptr),
       write_buffer_size(4<<20),
+      max_memtbl_capacity(MEM_CAPACITY >> 1),
+      memtbl_to_L0_ratio(30),
       max_open_files(1000),
       block_cache(nullptr),
       block_size(4096),

@@ -1,6 +1,7 @@
 //
 // Created by zxjcarrot on 2019-06-29.
 //
+#include <cmath>
 #include <string>
 #include <unordered_set>
 #include <unordered_map>
@@ -74,7 +75,7 @@ Status Segment::Open(const Options &options, uint32_t segment_id, RandomAccessFi
     return Status::OK();
 }
 
-Status Segment::OpenMiniRun(int run_no, Block &index_block, MiniRun **run) {
+Status Segment::OpenMiniRun(int run_no, Block &index_block, MiniRun *run) {
     Rep *r = rep_;
     if (run_no < 0 || run_no >= r->run_handles.size())
         return Status::InvalidArgument("run_no is not in valid range");
@@ -82,7 +83,7 @@ Status Segment::OpenMiniRun(int run_no, Block &index_block, MiniRun **run) {
     uint64_t run_size =
             run_no + 1 == r->run_handles.size() ? r->file_size - run_offset : r->run_handles[run_no + 1] - run_offset;
 
-    *run = new MiniRun(r->options, r->file, run_offset, run_size, index_block);
+    *run = MiniRun(r->options, r->file, run_offset, run_size, index_block);
     return Status::OK();
 }
 
@@ -210,4 +211,5 @@ Status SegmentManager::OpenManager(const Options& options, const std::string& db
     return Status::OK();
 }
 
+void Silkstore::
 }

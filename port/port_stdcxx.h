@@ -63,6 +63,20 @@ class LOCKABLE Mutex {
   std::mutex mu_;
 };
 
+class MutexLockGuard {
+public:
+    MutexLockGuard(Mutex &m) : m_(&m) { m_->Lock(); };
+
+    ~MutexLockGuard() { if (m_) m_->Unlock(); };
+
+    MutexLockGuard(const MutexLockGuard &) = delete;
+private:
+    friend class CondVar;
+
+    Mutex *m_;
+};
+
+
 // Thinly wraps std::condition_variable.
 class CondVar {
  public:

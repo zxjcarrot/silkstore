@@ -46,7 +46,7 @@ public:
     // Finish building a minirun.
     // Store the pointer to the current minirun in run_handle.
     // REQUIRES: Finish(), Abandon() have not been called.
-    Status FinishMiniRun(MiniRunHandle *run_handle);
+    Status FinishMiniRun(uint32_t *run_no);
 
     // Return the index block for the previously finished run.
     // REQUIRES: FinishMiniRun() has been called and StartMiniRun() has not.
@@ -101,7 +101,7 @@ public:
 
     void operator=(const Segment &) = delete;
 
-    Status OpenMiniRun(int run_no, Block &index_block, MiniRun **run);
+    Status OpenMiniRun(int run_no, Block &index_block, MiniRun *run);
 
     // Mark the minirun indicated by the segment.run_handle[run_no] as invalid.
     // Later GCs can simply skip this run without querying index for validness.
@@ -135,6 +135,8 @@ public:
     Status OpenSegment(uint32_t seg_id, Segment **seg_ptr);
 
     Status NewSegmentBuilder(uint32_t *seg_id, SegmentBuilder **seg_builder_ptr);
+
+    size_t ApproximateSize();
 
 private:
     struct Rep;

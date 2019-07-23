@@ -75,13 +75,13 @@ Slice SegmentBuilder::GetFinishedRunFilterBlock() {
     return r->run_builder->FilterBlock();
 }
 
-Status SegmentBuilder::FinishMiniRun(MiniRunHandle *run_handle) {
+Status SegmentBuilder::FinishMiniRun(uint32_t * run_no) {
     Rep *r = rep_;
     assert(r->run_started == true);
     r->status = r->run_builder->Finish();
     if (!ok()) return status();
-    *run_handle = r->prev_file_size;
-    r->run_handles.push_back(*run_handle);
+    *run_no = r->run_handles.size();
+    r->run_handles.push_back(r->prev_file_size);
     r->prev_file_size = r->run_builder->FileSize();
     r->run_started = false;
     return Status::OK();
