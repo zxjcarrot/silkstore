@@ -138,6 +138,8 @@ class LeafStore::LeafStoreIterator : public Iterator {
     void OpenLeafIterator() {
         if (leaf_index_it_->Valid()) {
             LeafIndexEntry index_entry(leaf_index_it_->value());
+            if (leaf_it_ != nullptr)
+                delete leaf_it_;
             leaf_it_ = store_->NewIteratorForLeaf(ropts_, index_entry, status_);
         }
     }
@@ -386,7 +388,7 @@ Iterator *LeafStore::NewIteratorForLeaf(const ReadOptions &options, const LeafIn
         return false;
     };
     leaf_index_entry.ForEachMiniRunIndexEntry(processor, LeafIndexEntry::TraversalOrder::forward);
-    if (s.ok()) {
+    if (!s.ok()) {
         return nullptr;
     }
     // Destroy miniruns opened when iterator is deleted by MergingIterator
