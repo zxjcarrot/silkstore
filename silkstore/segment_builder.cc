@@ -1,6 +1,7 @@
 //
 // Created by zxjcarrot on 2019-07-02.
 //
+
 #include <string>
 
 #include "leveldb/comparator.h"
@@ -13,9 +14,10 @@
 #include "util/coding.h"
 #include "util/crc32c.h"
 
-#include "silkstore/minirun.h"
 #include "silkstore/segment.h"
+#include "silkstore/minirun.h"
 
+namespace leveldb {
 namespace silkstore {
 
 struct SegmentBuilder::Rep {
@@ -30,15 +32,16 @@ struct SegmentBuilder::Rep {
     std::string src_segment_filepath;
     std::string target_segment_filepath;
 
-    Rep(const Options &opt, const std::string &src_segment_filepath, const std::string &target_segment_filepath,
-        WritableFile *f)
-            : options(opt),
-              file(f),
-              num_entries(0),
-              run_builder(new MiniRunBuilder(opt, f, 0)),
-              run_started(false), prev_file_size(0), src_segment_filepath(src_segment_filepath),
-              target_segment_filepath(target_segment_filepath) {
-    }
+    Rep(const Options &opt, const std::string &src_segment_filepath,
+        const std::string &target_segment_filepath, WritableFile *f)
+        : options(opt),
+          file(f),
+          num_entries(0),
+          run_builder(new MiniRunBuilder(opt, f, 0)),
+          run_started(false),
+          prev_file_size(0),
+          src_segment_filepath(src_segment_filepath),
+          target_segment_filepath(target_segment_filepath) {}
 
     ~Rep() {
         delete file;
@@ -108,16 +111,16 @@ Status SegmentBuilder::Finish() {
     std::string buf;
 
     for (auto handle : r->run_handles) {
-        leveldb::PutFixed64(&buf, handle);
+        PutFixed64(&buf, handle);
     }
     size_t buf_size = buf.size();
     r->status = r->file->Append(buf);
     if (!ok()) return status();
     buf.clear();
-    leveldb::PutFixed64(&buf, buf_size);
+    PutFixed64(&buf, buf_size);
     r->status = r->file->Append(buf);
 
-    return leveldb::Env::Default()->RenameFile(r->src_segment_filepath, r->target_segment_filepath);
+    return Env::Default()->RenameFile(r->src_segment_filepath, r->target_segment_filepath);
 }
 
 uint64_t SegmentBuilder::NumEntries() const {
@@ -128,4 +131,5 @@ uint64_t SegmentBuilder::FileSize() const {
     return rep_->run_builder->FileSize();
 }
 
-}
+}  // namespace silkstore
+}  // namespace leveldb

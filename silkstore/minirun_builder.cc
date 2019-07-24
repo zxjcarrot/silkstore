@@ -1,9 +1,9 @@
 //
 // Created by zxjcarrot on 2019-07-04.
 //
+
 #include <string>
 
-#include "table/two_level_iterator.h"
 #include "leveldb/comparator.h"
 #include "leveldb/env.h"
 #include "leveldb/filter_policy.h"
@@ -11,14 +11,15 @@
 #include "table/block_builder.h"
 #include "table/filter_block.h"
 #include "table/format.h"
+#include "table/two_level_iterator.h"
 #include "util/coding.h"
 #include "util/crc32c.h"
 
-#include "silkstore/minirun.h"
 #include "silkstore/segment.h"
+#include "silkstore/minirun.h"
 
+namespace leveldb {
 namespace silkstore {
-using namespace leveldb;
 
 struct MiniRunBuilder::Rep {
     Options options;
@@ -52,23 +53,25 @@ struct MiniRunBuilder::Rep {
     Slice finished_filter_block;
 
     Rep(const Options &opt, WritableFile *f, uint64_t offset = 0)
-            : options(opt),
-              index_block_options(opt),
-              file(f),
-              start_offset(offset),
-              offset(offset),
-              data_block(&options),
-              index_block(&index_block_options),
-              num_entries(0),
-              filter_block(opt.filter_policy == nullptr ? nullptr
-                                                        : new FilterBlockBuilder(opt.filter_policy)),
-              pending_index_entry(false) {
+        : options(opt),
+          index_block_options(opt),
+          file(f),
+          start_offset(offset),
+          offset(offset),
+          data_block(&options),
+          index_block(&index_block_options),
+          num_entries(0),
+          filter_block((opt.filter_policy == nullptr)
+            ? nullptr : new FilterBlockBuilder(opt.filter_policy)),
+          pending_index_entry(false) {
         index_block_options.block_restart_interval = 1;
     }
 };
 
 
-MiniRunBuilder::MiniRunBuilder(const Options &options, WritableFile *file, uint64_t file_offset)
+MiniRunBuilder::MiniRunBuilder(const Options &options,
+                               WritableFile *file,
+                               uint64_t file_offset)
         : rep_(new Rep(options, file, file_offset)) {
     if (rep_->filter_block != nullptr) {
         rep_->filter_block->StartBlock(0);
@@ -140,20 +143,20 @@ void MiniRunBuilder::WriteBlock(BlockBuilder *block, BlockHandle *handle) {
     CompressionType type = r->options.compression;
     // TODO(postrelease): Support more compression options: zlib?
     switch (type) {
-        case leveldb::kNoCompression:
+        case kNoCompression:
             block_contents = raw;
             break;
 
-        case leveldb::kSnappyCompression: {
+        case kSnappyCompression: {
             std::string *compressed = &r->compressed_output;
-            if (leveldb::port::Snappy_Compress(raw.data(), raw.size(), compressed) &&
+            if (port::Snappy_Compress(raw.data(), raw.size(), compressed) &&
                 compressed->size() < raw.size() - (raw.size() / 8u)) {
                 block_contents = *compressed;
             } else {
                 // Snappy not supported, or compressed less than 12.5%, so just
                 // store uncompressed form
                 block_contents = raw;
-                type = leveldb::kNoCompression;
+                type = kNoCompression;
             }
             break;
         }
@@ -171,14 +174,14 @@ void MiniRunBuilder::WriteRawBlock(const Slice &block_contents,
     handle->set_size(block_contents.size());
     r->status = r->file->Append(block_contents);
     if (r->status.ok()) {
-        char trailer[leveldb::kBlockTrailerSize];
+        char trailer[kBlockTrailerSize];
         trailer[0] = type;
-        uint32_t crc = leveldb::crc32c::Value(block_contents.data(), block_contents.size());
-        crc = leveldb::crc32c::Extend(crc, trailer, 1);  // Extend crc to cover block type
-        leveldb::EncodeFixed32(trailer + 1, leveldb::crc32c::Mask(crc));
-        r->status = r->file->Append(Slice(trailer, leveldb::kBlockTrailerSize));
+        uint32_t crc = crc32c::Value(block_contents.data(), block_contents.size());
+        crc = crc32c::Extend(crc, trailer, 1);  // Extend crc to cover block type
+        EncodeFixed32(trailer + 1, crc32c::Mask(crc));
+        r->status = r->file->Append(Slice(trailer, kBlockTrailerSize));
         if (r->status.ok()) {
-            r->offset += block_contents.size() + leveldb::kBlockTrailerSize;
+            r->offset += block_contents.size() + kBlockTrailerSize;
         }
     }
 }
@@ -195,7 +198,7 @@ Status MiniRunBuilder::Finish() {
     // Finalize filter block
     if (ok() && r->filter_block != nullptr) {
         r->finished_filter_block = r->filter_block->FinishWithoutOffsets();
-        //WriteRawBlock(r->filter_block->Finish(), leveldb::kNoCompression, &filter_block_handle);
+        //WriteRawBlock(r->filter_block->Finish(), kNoCompression, &filter_block_handle);
     }
 
 //    //silkstore's minirun has no metablock
@@ -234,7 +237,7 @@ Status MiniRunBuilder::Finish() {
 //
 //    // Write footer
 //    if (ok()) {
-//        leveldb::Footer footer;
+//        Footer footer;
 //        footer.set_metaindex_handle(metaindex_block_handle);
 //        footer.set_index_handle(index_block_handle);
 //        std::string footer_encoding;
@@ -272,4 +275,5 @@ uint64_t MiniRunBuilder::FileSize() const {
     return rep_->offset;
 }
 
-}
+}  // namespace silkstore
+}  // namespace leveldb

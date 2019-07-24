@@ -11,23 +11,24 @@
 
 #include <deque>
 #include <set>
+
 #include "db/dbformat.h"
 #include "db/log_writer.h"
-#include "db/snapshot.h"
 #include "db/memtable.h"
+#include "db/snapshot.h"
 #include "leveldb/db.h"
 #include "leveldb/env.h"
 #include "port/port.h"
 #include "port/thread_annotations.h"
-#include "segment.h"
+
 #include "leaf_store.h"
+#include "segment.h"
 
+namespace leveldb {
 namespace silkstore {
-using namespace leveldb;
-
 
 class SilkStore : public DB {
-public:
+ public:
     SilkStore(const Options &options, const std::string &dbname);
 
     virtual ~SilkStore();
@@ -81,7 +82,7 @@ public:
     Status OpenIndex(const Options &index_options);
 
     void BackgroundCompaction();
-private:
+ private:
 
     friend class DB;
 
@@ -99,7 +100,7 @@ private:
 
 
     // Leaf index
-    leveldb::DB *leaf_index_;
+    DB *leaf_index_;
 
     // Lock over the persistent DB state.  Non-null iff successfully acquired.
     FileLock *db_lock_;
@@ -195,6 +196,8 @@ private:
     // silkstore stuff
     LeafStore * leaf_store_ = nullptr;
 };
+
 }  // namespace silkstore
+}  // namespace leveldb
 
 #endif  // SILKSTORE_DB_IMPL_H_

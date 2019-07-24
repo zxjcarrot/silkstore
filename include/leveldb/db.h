@@ -53,17 +53,16 @@ class LEVELDB_EXPORT DB {
                      const std::string& name,
                      DB** dbptr);
 
-    // Open the database with the specified "name".
-    // Stores a pointer to a heap-allocated database in *dbptr and returns
-    // OK on success.
-    // Stores nullptr in *dbptr and returns a non-OK status on error.
-    // Caller should delete *dbptr when it is no longer needed.
-    static Status OpenSilkStore(const Options& options,
-                       const std::string& name,
-                       DB** dbptr);
+  // Open the database with the specified "name".
+  // Stores a pointer to a heap-allocated database in *dbptr and returns
+  // OK on success.
+  // Stores nullptr in *dbptr and returns a non-OK status on error.
+  // Caller should delete *dbptr when it is no longer needed.
+  static Status OpenSilkStore(const Options& options,
+                              const std::string& name,
+                              DB** dbptr);
 
-
-    DB() = default;
+  DB() = default;
 
   DB(const DB&) = delete;
   DB& operator=(const DB&) = delete;

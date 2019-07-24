@@ -1,35 +1,33 @@
 //
 // Created by zxjcarrot on 2019-06-29.
 //
+
 #include <string>
 
-#include "table/two_level_iterator.h"
 #include "leveldb/comparator.h"
 #include "leveldb/env.h"
 #include "leveldb/filter_policy.h"
-#include "leveldb/options.h"
 #include "table/block_builder.h"
 #include "table/filter_block.h"
 #include "table/format.h"
+#include "table/two_level_iterator.h"
 #include "util/coding.h"
 #include "util/crc32c.h"
 #include "table/block_builder.h"
 
-#include "silkstore/minirun.h"
 #include "silkstore/segment.h"
+#include "silkstore/minirun.h"
 
-
+namespace leveldb {
 namespace silkstore {
 
-using namespace leveldb;
-using namespace leveldb::crc32c;
-
-MiniRun::MiniRun(const Options *options, RandomAccessFile *file, uint64_t off, uint64_t size, Block &index_block) :
-        options(options),
-        file(file),
-        run_start_off(off),
-        run_size(size),
-        index_block(index_block) {}
+MiniRun::MiniRun(const Options *options, RandomAccessFile *file,
+                 uint64_t off, uint64_t size, Block &index_block)
+    : options(options),
+      file(file),
+      run_start_off(off),
+      run_size(size),
+      index_block(index_block) {}
 
 static void DeleteBlock(void *arg, void *ignored) {
     delete reinterpret_cast<Block *>(arg);
@@ -109,10 +107,11 @@ Iterator *MiniRun::BlockReader(void *arg,
     return iter;
 }
 
-Iterator *MiniRun::NewIterator(const leveldb::ReadOptions &read_options) {
-    return leveldb::NewTwoLevelIterator(
+Iterator *MiniRun::NewIterator(const ReadOptions &read_options) {
+    return NewTwoLevelIterator(
             index_block.NewIterator(this->options->comparator),
             &MiniRun::BlockReader, const_cast<MiniRun *>(this), read_options);
 }
 
-}
+}  // namespace silkstore
+}  // namespace leveldb

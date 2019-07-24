@@ -1,6 +1,9 @@
 //
 // Created by zxjcarrot on 2019-06-29.
 //
+
+#include "silkstore/segment.h"
+
 #include <cmath>
 #include <string>
 #include <unordered_set>
@@ -17,9 +20,8 @@
 #include "util/crc32c.h"
 
 #include "silkstore/minirun.h"
-#include "silkstore/segment.h"
 
-
+namespace leveldb {
 namespace silkstore {
 
 static std::string MakeSegmentFileName(uint32_t segment_id) {
@@ -42,10 +44,11 @@ struct Segment::Rep {
 
 Status Segment::InvalidateMiniRun(const int &run_no) {
     Rep *r = rep_;
-    leveldb::PutVarint32(&r->invalidated_runs, run_no);
+    PutVarint32(&r->invalidated_runs, run_no);
 }
 
-Status Segment::Open(const Options &options, uint32_t segment_id, RandomAccessFile *file, uint64_t file_size,
+Status Segment::Open(const Options &options, uint32_t segment_id,
+                     RandomAccessFile *file, uint64_t file_size,
                      silkstore::Segment **segment) {
     Rep *r = new Rep;
     r->file = file;
@@ -60,7 +63,7 @@ Status Segment::Open(const Options &options, uint32_t segment_id, RandomAccessFi
     Status s = file->Read(footer_offset, sizeof(uint64_t), &footer_input, footer_buf);
     if (!s.ok()) return s;
 
-    uint64_t minirun_index_block_size = leveldb::DecodeFixed64(footer_buf);
+    uint64_t minirun_index_block_size = DecodeFixed64(footer_buf);
     char minirun_index_buf[minirun_index_block_size];
     Slice minirun_index_input;
     s = file->Read(footer_offset - minirun_index_block_size, minirun_index_block_size, &minirun_index_input,
@@ -70,7 +73,7 @@ Status Segment::Open(const Options &options, uint32_t segment_id, RandomAccessFi
     r->run_handles.reserve(minirun_index_block_size / sizeof(uint64_t));
     const char *minirun_index_buf_end = minirun_index_buf + minirun_index_block_size;
     for (auto p = minirun_index_buf; p < minirun_index_buf_end; p += sizeof(uint64_t)) {
-        r->run_handles.emplace_back(leveldb::DecodeFixed64(p));
+        r->run_handles.emplace_back(DecodeFixed64(p));
     }
     return Status::OK();
 }
@@ -95,7 +98,7 @@ void Segment::ForEachRun(std::function<void (int, bool)> processor) {
     const char * end = start + r->invalidated_runs.size();
     while (start < end) {
         uint32_t run_no;
-        start = leveldb::GetVarint32Ptr(start, end, &run_no);
+        start = GetVarint32Ptr(start, end, &run_no);
         invalidated_runs.insert(run_no);
     }
 
@@ -121,9 +124,9 @@ static bool GetSegmentFileInfo(const std::string & filename, uint32_t & seg_id) 
     return false;
 }
 
-Status SegmentManager::NewSegmentBuilder(uint32_t *seg_id, silkstore::SegmentBuilder **seg_builder_ptr) {
+Status SegmentManager::NewSegmentBuilder(uint32_t *seg_id, SegmentBuilder **seg_builder_ptr) {
     Rep*r = rep_;
-    leveldb::Env* default_env = leveldb::Env::Default();
+    Env* default_env = Env::Default();
     std::lock_guard<std::mutex> g(r->mutex);
     uint32_t exp_seg_id = r->seg_id_max + 1;
     std::string src_segment_filepath = "tmpseg." + std::to_string(exp_seg_id);
@@ -138,7 +141,7 @@ Status SegmentManager::NewSegmentBuilder(uint32_t *seg_id, silkstore::SegmentBui
     return Status::OK();
 }
 
-Status SegmentManager::OpenSegment(uint32_t seg_id, silkstore::Segment **seg_ptr) {
+Status SegmentManager::OpenSegment(uint32_t seg_id, Segment **seg_ptr) {
     Rep* r = rep_;
     r->mutex.lock();
     auto filepath_it = r->segment_filepaths.find(seg_id);
@@ -151,7 +154,7 @@ Status SegmentManager::OpenSegment(uint32_t seg_id, silkstore::Segment **seg_ptr
     if (it == r->segments.end()) {
         std::string filepath = filepath_it->second;
         r->mutex.unlock();
-        leveldb::Env* default_env = leveldb::Env::Default();
+        Env* default_env = Env::Default();
         RandomAccessFile*rfile;
         Status s = default_env->NewRandomAccessFile(filepath, &rfile);
         if (!s.ok()) {
@@ -175,8 +178,10 @@ Status SegmentManager::OpenSegment(uint32_t seg_id, silkstore::Segment **seg_ptr
     return Status::OK();
 }
 
-Status SegmentManager::OpenManager(const Options& options, const std::string& dbname, SegmentManager**manager_ptr) {
-    leveldb::Env* default_env = leveldb::Env::Default();
+Status SegmentManager::OpenManager(const Options& options,
+                                   const std::string& dbname,
+                                   SegmentManager** manager_ptr) {
+    Env* default_env = Env::Default();
     if (default_env->FileExists(dbname) == false) {
         if (options.create_if_missing == false) {
             return Status::NotFound("dbname[" + dbname + "] not found");
@@ -211,4 +216,5 @@ Status SegmentManager::OpenManager(const Options& options, const std::string& db
     return Status::OK();
 }
 
-}
+}  // namespace silkstore
+}  // namespace leveldb
