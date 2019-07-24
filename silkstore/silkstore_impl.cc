@@ -14,6 +14,22 @@
 #include "silkstore/util.h"
 
 namespace leveldb {
+
+Status DB::OpenSilkStore(const Options &options,
+                         const std::string &name,
+                         DB **dbptr) {
+    *dbptr = nullptr;
+    silkstore::SilkStore* store = new silkstore::SilkStore(options, name);
+    Status s = store->Recover();
+    if (s.ok()) {
+        *dbptr = store;
+        return s;
+    } else {
+        delete store;
+        return s;
+    }
+}
+
 namespace silkstore {
 
 const std::string kCURRENTFilename = "CURRENT";
@@ -246,8 +262,6 @@ Status SilkStore::Delete(const WriteOptions& options, const Slice& key) {
 
 Iterator* SilkStore::NewIterator(const ReadOptions& ropts) {
     MutexLock l(&mutex_);
-    *latest_snapshot = versions_->LastSequence();
-
     // Collect together all needed child iterators
     std::vector<Iterator*> list;
     list.push_back(mem_->NewIterator());
@@ -260,12 +274,7 @@ Iterator* SilkStore::NewIterator(const ReadOptions& ropts) {
     list.push_back(leaf_store_->NewIterator(ropts));
     Iterator* internal_iter =
       NewMergingIterator(&internal_comparator_, &list[0], list.size());
-    versions_->current()->Ref();
 
-    IterState* cleanup = new IterState(&mutex_, mem_, imm_, versions_->current());
-    internal_iter->RegisterCleanup(CleanupIteratorState, cleanup, nullptr);
-
-    *seed = ++seed_;
     return internal_iter;
 }
 

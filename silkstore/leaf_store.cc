@@ -25,7 +25,10 @@ class LeafStore::LeafStoreIterator : public Iterator {
         leaf_index_it_ = store_->leaf_index_->NewIterator(options);
     }
 
-    ~LeafStoreIterator() override;
+    ~LeafStoreIterator() override {
+        delete leaf_index_it_;
+        if (leaf_it_) delete leaf_it_;
+    }
 
     // An iterator is either positioned at a key/value pair, or
     // not valid.  This method returns true iff the iterator is valid.
@@ -71,8 +74,7 @@ class LeafStore::LeafStoreIterator : public Iterator {
     // true iff the iterator was not positioned at the last entry in the source.
     // REQUIRES: Valid()
     void Next() override {
-        if (leaf_it_ == nullptr) return Status::Corruption("Empty Leaf Reference");
-        assert(leaf_it_->Valid());
+        assert(Valid());
         leaf_it_->Next();
         if (!leaf_it_->Valid()) {
             leaf_index_it_->Next();
@@ -87,8 +89,7 @@ class LeafStore::LeafStoreIterator : public Iterator {
     // true iff the iterator was not positioned at the first entry in source.
     // REQUIRES: Valid()
     void Prev() override {
-        if (leaf_it_ == nullptr) return Status::Corruption("Empty Leaf Reference");
-        assert(leaf_it_->Valid());
+        assert(Valid());
         leaf_it_->Prev();
         if (!leaf_it_->Valid()) {
             leaf_index_it_->Prev();

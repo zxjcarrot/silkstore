@@ -1575,21 +1575,4 @@ Status DestroyDB(const std::string& dbname, const Options& options) {
   return result;
 }
 
-#include "silkstore/silkstore_impl.h"
-Status DB::OpenSilkStore(const Options &options,
-                         const std::string &name,
-                         DB **dbptr) {
-  *dbptr = nullptr;
-  using namespace silkstore;
-  SilkStore* store = new SilkStore(options, name);
-  Status s = store->Recover();
-  if (s.ok()) {
-    *dbptr = store;
-    return s;
-  } else {
-    delete store;
-    return s;
-  }
-}
-
 }  // namespace leveldb

@@ -138,7 +138,7 @@ class SegmentManager {
 
     Status NewSegmentBuilder(uint32_t *seg_id, SegmentBuilder **seg_builder_ptr);
 
-    size_t ApproximateSize();
+    size_t ApproximateSize() { return 0; }
 
  private:
     struct Rep;

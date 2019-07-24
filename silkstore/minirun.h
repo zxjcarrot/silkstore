@@ -10,9 +10,11 @@
 #include "leveldb/cache.h"
 #include "leveldb/env.h"
 #include "leveldb/iterator.h"
+#include "leveldb/options.h"
 #include "leveldb/slice.h"
 #include "table/block.h"
 #include "table/block_builder.h"
+#include "table/format.h"
 
 namespace leveldb {
 namespace silkstore {
@@ -27,7 +29,7 @@ class MiniRun {
  public:
     Iterator *NewIterator(const ReadOptions &);
 
-    MiniRun(const Options &options, RandomAccessFile *file,
+    MiniRun(const Options *options, RandomAccessFile *file,
             uint64_t off, uint64_t size, Block &index_block);
  private:
     static Iterator *BlockReader(void *, const ReadOptions &, const Slice &);
