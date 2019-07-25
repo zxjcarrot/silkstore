@@ -66,6 +66,13 @@ Status SegmentBuilder::StartMiniRun() {
     return Status::OK();
 }
 
+
+
+bool SegmentBuilder::RunStarted() const {
+    Rep *r = rep_;
+    return r->run_started;
+}
+
 Slice SegmentBuilder::GetFinishedRunIndexBlock() {
     Rep *r = rep_;
     assert(r->run_started == false);

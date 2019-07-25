@@ -166,6 +166,7 @@ target_sources(leveldb
     "${PROJECT_SOURCE_DIR}/silkstore/segment_builder.cc"
     "${PROJECT_SOURCE_DIR}/silkstore/silkstore_impl.cc"
     "${PROJECT_SOURCE_DIR}/silkstore/leaf_store.cc"
+    "${PROJECT_SOURCE_DIR}/silkstore/silkstore_iter.cc"
 
   # Only CMake 3.3+ supports PUBLIC sources in targets exported by "install".
   $<$<VERSION_GREATER:CMAKE_VERSION,3.2>:PUBLIC>

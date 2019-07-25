@@ -6,6 +6,7 @@
 #define SILKSTORE_SEGMENT_H
 
 #include <stdint.h>
+#include <functional>
 
 #include "leveldb/slice.h"
 #include "table/block.h"
@@ -66,6 +67,8 @@ class SegmentBuilder {
     // Size of the file generated so far.  If invoked after a successful
     // Finish() call, returns the size of the final generated file.
     uint64_t FileSize() const;
+
+    bool RunStarted() const;
 
  private:
     bool ok() const { return status().ok(); }
@@ -140,6 +143,7 @@ class SegmentManager {
 
     size_t ApproximateSize() { return 0; }
 
+    Status InvalidateSegmentRun(uint32_t seg_id, uint32_t run_no);
  private:
     struct Rep;
     Rep *rep_;

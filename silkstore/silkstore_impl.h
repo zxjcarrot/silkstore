@@ -193,6 +193,16 @@ class SilkStore : public DB {
     static void BGWork(void* db);
     void BackgroundCall();
 
+    LeafIndexEntry
+    CompactLeaf(SegmentBuilder *seg_builder, uint32_t seg_no, const LeafIndexEntry &leaf_index_entry, Status &s,
+                std::string *buf, uint32_t start_minirun_no, uint32_t end_minirun_no);
+
+    std::pair<uint32_t, uint32_t> ChooseLeafCompactionRunRange(const LeafIndexEntry &leaf_index_entry);
+
+    Status
+    SplitLeaf(SegmentBuilder *seg_builder, uint32_t seg_no, const LeafIndexEntry &leaf_index_entry,
+              std::string *l1_max_key_buf, std::string *l2_max_key_buf, std::string *l1_index_entry_buf,
+              std::string *l2_index_entry_buf);
     // silkstore stuff
     LeafStore * leaf_store_ = nullptr;
 };

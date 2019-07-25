@@ -2,7 +2,7 @@
 // Created by zxjcarrot on 2019-07-15.
 //
 
-#include "leaf_store.h"
+
 
 #include <vector>
 
@@ -11,7 +11,10 @@
 #include "table/merger.h"
 #include "util/coding.h"
 
+#include "silkstore/leaf_store.h"
+#include "silkstore/silkstore_iter.h"
 #include "silkstore/util.h"
+#include "silkstore/segment.h"
 
 namespace leveldb {
 namespace silkstore {
@@ -157,13 +160,14 @@ MiniRunIndexEntry::MiniRunIndexEntry(const Slice &data) : raw_data_(data) {
     filter_data_len_ = DecodeFixed32(p);
 }
 
-void MiniRunIndexEntry::EncodeMiniRunIndexEntry(uint32_t seg_no, uint32_t run_no, Slice block_index_data, Slice filter_data, std::string * buf) {
+MiniRunIndexEntry MiniRunIndexEntry::Build(uint32_t seg_no, uint32_t run_no, Slice block_index_data, Slice filter_data, std::string * buf) {
     PutFixed32(buf, seg_no);
     PutFixed32(buf, run_no);
     PutFixed32(buf, block_index_data.size());
     PutFixed32(buf, filter_data.size());
     buf->append(block_index_data.data(), block_index_data.size());
     buf->append(filter_data.data(), filter_data.size());
+    return MiniRunIndexEntry(Slice(*buf));
 }
 
 Slice MiniRunIndexEntry::GetBlockIndexData() const {
@@ -365,10 +369,6 @@ Iterator *LeafStore::NewIteratorForLeaf(const ReadOptions &options, const LeafIn
     iters.reserve(leaf_index_entry.GetNumMiniRuns());
     runs.reserve(leaf_index_entry.GetNumMiniRuns());
     auto processor = [&, this](const MiniRunIndexEntry &minirun_index_entry, uint32_t run_no) -> bool {
-        if (run_no > end_minirun_no) {
-            return true; // early return
-        }
-
         if (start_minirun_no <= run_no && run_no <= end_minirun_no) {
             uint32_t seg_no = minirun_index_entry.GetSegmentNumber();
             Segment *seg = nullptr;
@@ -387,7 +387,7 @@ Iterator *LeafStore::NewIteratorForLeaf(const ReadOptions &options, const LeafIn
 
         return false;
     };
-    leaf_index_entry.ForEachMiniRunIndexEntry(processor, LeafIndexEntry::TraversalOrder::forward);
+    leaf_index_entry.ForEachMiniRunIndexEntry(processor, LeafIndexEntry::TraversalOrder::backward);
     if (!s.ok()) {
         return nullptr;
     }
@@ -396,6 +396,15 @@ Iterator *LeafStore::NewIteratorForLeaf(const ReadOptions &options, const LeafIn
         iters[i]->RegisterCleanup(NewIteratorForLeafCleanupFunc, runs[i], nullptr);
     }
     return NewMergingIterator(options_.comparator, &iters[0], iters.size());
+}
+
+Iterator *LeafStore::NewDBIterForLeaf(const ReadOptions &options, const LeafIndexEntry &leaf_index_entry, Status &s,
+                                      const Comparator *user_comparator,
+                                      SequenceNumber seq, uint32_t start_minirun_no,
+                                      uint32_t end_minirun_no) {
+    Iterator *internal_iter = NewIteratorForLeaf(options, leaf_index_entry, s, start_minirun_no, end_minirun_no);
+    if (!s.ok()) return nullptr;
+    return leveldb::silkstore::NewDBIterator(user_comparator, internal_iter, seq);
 }
 
 Status LeafStore::Open(SegmentManager* seg_manager, DB * leaf_index,

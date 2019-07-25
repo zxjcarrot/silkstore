@@ -18,6 +18,7 @@
 #include "table/format.h"
 #include "util/coding.h"
 #include "util/crc32c.h"
+#include "util/mutexlock.h"
 
 #include "silkstore/minirun.h"
 
@@ -45,6 +46,7 @@ struct Segment::Rep {
 Status Segment::InvalidateMiniRun(const int &run_no) {
     Rep *r = rep_;
     PutVarint32(&r->invalidated_runs, run_no);
+    return Status::OK();
 }
 
 Status Segment::Open(const Options &options, uint32_t segment_id,
@@ -140,7 +142,15 @@ Status SegmentManager::NewSegmentBuilder(uint32_t *seg_id, SegmentBuilder **seg_
     r->seg_id_max = *seg_id = exp_seg_id;
     return Status::OK();
 }
-
+Status SegmentManager::InvalidateSegmentRun(uint32_t seg_id, uint32_t run_no) {
+    Segment * seg;
+    Status s = OpenSegment(seg_id, &seg);
+    if (!s.ok()) return s;
+    Rep* r = rep_;
+    std::lock_guard<std::mutex> g(r->mutex);
+    s = seg->InvalidateMiniRun(run_no);
+    return s;
+}
 Status SegmentManager::OpenSegment(uint32_t seg_id, Segment **seg_ptr) {
     Rep* r = rep_;
     r->mutex.lock();

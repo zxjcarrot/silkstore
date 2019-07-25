@@ -16,12 +16,13 @@
 #include "leveldb/options.h"
 #include "leveldb/slice.h"
 #include "table/block.h"
+#include "db/db_iter.h"
 
-#include "segment.h"
 
 namespace leveldb {
 namespace silkstore {
 
+class SegmentManager;
 // format
 //
 class MiniRunIndexEntry {
@@ -38,7 +39,7 @@ class MiniRunIndexEntry {
 
     Slice GetRawData() const { return raw_data_; }
 
-    static void EncodeMiniRunIndexEntry(uint32_t seg_no, uint32_t run_no, Slice block_index_data, Slice filter_data, std::string * buf);
+    static MiniRunIndexEntry Build(uint32_t seg_no, uint32_t run_no, Slice block_index_data, Slice filter_data, std::string * buf);
 
  private:
     Slice raw_data_;
@@ -110,6 +111,12 @@ class LeafStore {
                                  Status &s,
                                  uint32_t start_minirun_no = 0,
                                  uint32_t end_minirun_no = std::numeric_limits<uint32_t>::max());
+
+    Iterator *NewDBIterForLeaf(const ReadOptions &options, const LeafIndexEntry &leaf_index_entry, Status &s,
+                               const Comparator *user_comparator,
+                               SequenceNumber seq, uint32_t start_minirun_no = 0,
+                               uint32_t end_minirun_no = std::numeric_limits<uint32_t>::max());
+
  private:
     class LeafStoreIterator;
 
