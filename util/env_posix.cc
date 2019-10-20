@@ -880,4 +880,7 @@ Env* Env::Default() {
   return env_container.env();
 }
 
+Env* Env::NewPosixEnv() {
+  return new PosixEnv;
+}
 }  // namespace leveldb

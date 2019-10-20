@@ -141,4 +141,87 @@ Status SetCurrentFile(Env* env, const std::string& dbname,
   return s;
 }
 
+Status SetCurrentFileWithLogNumber(Env* env, const std::string& dbname,
+                      uint64_t log_seq_num) {
+  // Remove leading "dbname/" and add newline to manifest file name
+  Slice contents =  std::to_string(log_seq_num);
+  std::string tmp = TempFileName(dbname, log_seq_num);
+  Status s = WriteStringToFileSync(env, contents.ToString() + "\n", tmp);
+  if (s.ok()) {
+    s = env->RenameFile(tmp, CurrentFileName(dbname));
+  }
+  if (!s.ok()) {
+    env->DeleteFile(tmp);
+  }
+  return s;
+}
+
+// Owned filenames have the form:
+//    dbname/CURRENT
+//    dbname/LOCK
+//    dbname/LOG
+//    dbname/LOG.old
+//    dbname/MANIFEST-[0-9]+
+//    dbname/[0-9]+.(log|sst|ldb)
+bool ParseSilkstoreFileName(const std::string& filename,
+                   uint64_t* number,
+                   FileType* type) {
+  Slice rest(filename);
+  if (rest == "CURRENT") {
+    *number = 0;
+    *type = kCurrentFile;
+  } else if (rest == "LOCK") {
+    *number = 0;
+    *type = kDBLockFile;
+  } else if (rest == "LOG" || rest == "LOG.old") {
+    *number = 0;
+    *type = kInfoLogFile;
+  } else if (rest.starts_with("seg.")) {
+    rest.remove_prefix(strlen("seg."));
+    uint64_t num;
+    if (!ConsumeDecimalNumber(&rest, &num)) {
+      return false;
+    }
+    if (!rest.empty()) {
+      return false;
+    }
+    *type = kSegementFile;
+    *number = num;
+  } else if (rest.starts_with("tmpseg.")) {
+    *number = 0;
+    *type = kTempFile;
+    return true;
+  } else if (rest.starts_with("MANIFEST-")) {
+      rest.remove_prefix(strlen("MANIFEST-"));
+      uint64_t num;
+      if (!ConsumeDecimalNumber(&rest, &num)) {
+        return false;
+      }
+      if (!rest.empty()) {
+        return false;
+      }
+      *type = kDescriptorFile;
+      *number = num;
+  } else {
+    // Avoid strtoull() to keep filename format independent of the
+    // current locale
+    uint64_t num;
+    if (!ConsumeDecimalNumber(&rest, &num)) {
+      return false;
+    }
+    Slice suffix = rest;
+    if (suffix == Slice(".log")) {
+      *type = kLogFile;
+    } else if (suffix == Slice(".sst") || suffix == Slice(".ldb")) {
+      *type = kTableFile;
+    } else if (suffix == Slice(".dbtmp")) {
+      *type = kTempFile;
+    } else {
+      return false;
+    }
+    *number = num;
+  }
+  return true;
+}
+
 }  // namespace leveldb

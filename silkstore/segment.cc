@@ -65,7 +65,7 @@ Status Segment::Open(const Options &options, uint32_t segment_id,
     Status s = file->Read(footer_offset, sizeof(uint64_t), &footer_input, footer_buf);
     if (!s.ok()) return s;
 
-    uint64_t minirun_index_block_size = DecodeFixed64(footer_buf);
+    uint64_t minirun_index_block_size = DecodeFixed64(footer_input.data());
     char minirun_index_buf[minirun_index_block_size];
     Slice minirun_index_input;
     s = file->Read(footer_offset - minirun_index_block_size, minirun_index_block_size, &minirun_index_input,
@@ -73,8 +73,8 @@ Status Segment::Open(const Options &options, uint32_t segment_id,
     if (!s.ok()) return s;
 
     r->run_handles.reserve(minirun_index_block_size / sizeof(uint64_t));
-    const char *minirun_index_buf_end = minirun_index_buf + minirun_index_block_size;
-    for (auto p = minirun_index_buf; p < minirun_index_buf_end; p += sizeof(uint64_t)) {
+    const char *minirun_index_buf_end = minirun_index_input.data() + minirun_index_block_size;
+    for (auto p = minirun_index_input.data(); p < minirun_index_buf_end; p += sizeof(uint64_t)) {
         r->run_handles.emplace_back(DecodeFixed64(p));
     }
     return Status::OK();
@@ -115,6 +115,7 @@ struct SegmentManager::Rep {
     std::unordered_map<uint32_t, std::string> segment_filepaths;
     uint32_t seg_id_max = 0;
     Options options;
+    std::string dbname;
 };
 
 static bool GetSegmentFileInfo(const std::string & filename, uint32_t & seg_id) {
@@ -126,20 +127,21 @@ static bool GetSegmentFileInfo(const std::string & filename, uint32_t & seg_id) 
     return false;
 }
 
-Status SegmentManager::NewSegmentBuilder(uint32_t *seg_id, SegmentBuilder **seg_builder_ptr) {
+Status SegmentManager::NewSegmentBuilder(uint32_t *seg_id, std::unique_ptr<SegmentBuilder> &seg_builder_ptr) {
     Rep*r = rep_;
     Env* default_env = Env::Default();
     std::lock_guard<std::mutex> g(r->mutex);
     uint32_t exp_seg_id = r->seg_id_max + 1;
-    std::string src_segment_filepath = "tmpseg." + std::to_string(exp_seg_id);
-    std::string target_segment_filepath = "seg." + std::to_string(exp_seg_id);
+    std::string src_segment_filepath = r->dbname + "/tmpseg." + std::to_string(exp_seg_id);
+    std::string target_segment_filepath = r->dbname + "/seg." + std::to_string(exp_seg_id);
     WritableFile* wfile = nullptr;
     Status s = default_env->NewAppendableFile(src_segment_filepath, &wfile);
     if (!s.ok()) {
         return s;
     }
-    *seg_builder_ptr = new SegmentBuilder(r->options, src_segment_filepath, target_segment_filepath, wfile);
+    seg_builder_ptr.reset(new SegmentBuilder(r->options, src_segment_filepath, target_segment_filepath, wfile));
     r->seg_id_max = *seg_id = exp_seg_id;
+    r->segment_filepaths[*seg_id] = target_segment_filepath;
     return Status::OK();
 }
 Status SegmentManager::InvalidateSegmentRun(uint32_t seg_id, uint32_t run_no) {
@@ -170,6 +172,7 @@ Status SegmentManager::OpenSegment(uint32_t seg_id, Segment **seg_ptr) {
         if (!s.ok()) {
             return s;
         }
+
         uint64_t filesize;
         s = default_env->GetFileSize(filepath, &filesize);
         if (!s.ok()) {
@@ -181,6 +184,7 @@ Status SegmentManager::OpenSegment(uint32_t seg_id, Segment **seg_ptr) {
         }
         r->mutex.lock();
         r->segments[seg_id] = *seg_ptr;
+        r->segment_filepaths[seg_id] = filepath;
     } else {
         *seg_ptr = it->second;
     }
@@ -203,6 +207,7 @@ Status SegmentManager::OpenManager(const Options& options,
     }
     Rep* r = new Rep;
     r->options = options;
+    r->dbname = dbname;
     std::vector<std::string> subfiles;
     Status s = default_env->GetChildren(dbname, &subfiles);
     if (!s.ok()) {

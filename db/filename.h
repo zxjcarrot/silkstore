@@ -24,7 +24,8 @@ enum FileType {
   kDescriptorFile,
   kCurrentFile,
   kTempFile,
-  kInfoLogFile  // Either the current one, or an old one
+  kInfoLogFile,  // Either the current one, or an old one
+  kSegementFile  // segment storage file
 };
 
 // Return the name of the log file with the specified number
@@ -73,9 +74,22 @@ bool ParseFileName(const std::string& filename,
                    uint64_t* number,
                    FileType* type);
 
+// If filename is a silkstore file, store the type of the file in *type.
+// The number encoded in the filename is stored in *number.  If the
+// filename was successfully parsed, returns true.  Else return false.
+bool ParseSilkstoreFileName(const std::string& filename,
+                   uint64_t* number,
+                   FileType* type);
+
+
 // Make the CURRENT file point to the descriptor file with the
 // specified number.
 Status SetCurrentFile(Env* env, const std::string& dbname,
+                      uint64_t descriptor_number);
+
+// Make the CURRENT file point to the log file with the
+// specified number.
+Status SetCurrentFileWithLogNumber(Env* env, const std::string& dbname,
                       uint64_t descriptor_number);
 
 }  // namespace leveldb

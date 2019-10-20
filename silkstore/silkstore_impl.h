@@ -50,11 +50,11 @@ class SilkStore : public DB {
 
     virtual void ReleaseSnapshot(const Snapshot *snapshot);
 
-    virtual bool GetProperty(const Slice &property, std::string *value);
+    virtual bool GetProperty(const Slice &property, std::string *value) { return false; }
 
-    virtual void GetApproximateSizes(const Range *range, int n, uint64_t *sizes);
+    virtual void GetApproximateSizes(const Range *range, int n, uint64_t *sizes) {}
 
-    virtual void CompactRange(const Slice *begin, const Slice *end);
+    virtual void CompactRange(const Slice *begin, const Slice *end) {}
 
     // Extra methods (for testing) that are not in the public DB interface
 
@@ -82,6 +82,8 @@ class SilkStore : public DB {
     Status OpenIndex(const Options &index_options);
 
     void BackgroundCompaction();
+
+    void Destroy();
  private:
 
     friend class DB;
@@ -98,6 +100,7 @@ class SilkStore : public DB {
     const bool owns_cache_;
     const std::string dbname_;
 
+    Options leaf_index_options_;  // options_.comparator == &internal_comparator_
 
     // Leaf index
     DB *leaf_index_;
@@ -119,6 +122,8 @@ class SilkStore : public DB {
     uint32_t seed_ GUARDED_BY(mutex_);  // For sampling.
     SequenceNumber max_sequence_ GUARDED_BY(mutex_);
     size_t memtable_capacity_ GUARDED_BY(mutex_);;
+    size_t allowed_num_leaves = 0;
+    size_t num_leaves = 0;
     SegmentManager* segment_manager_;
     // Queue of writers.
     std::deque<Writer *> writers_ GUARDED_BY(mutex_);
@@ -194,18 +199,19 @@ class SilkStore : public DB {
     void BackgroundCall();
 
     LeafIndexEntry
-    CompactLeaf(SegmentBuilder *seg_builder, uint32_t seg_no, const LeafIndexEntry &leaf_index_entry, Status &s,
-                std::string *buf, uint32_t start_minirun_no, uint32_t end_minirun_no);
+    CompactLeaf(SegmentBuilder *seg_builder, uint32_t seg_no, const LeafIndexEntry &leaf_index_entry, Status &s,std::string *buf, uint32_t start_minirun_no, uint32_t end_minirun_no);
 
     std::pair<uint32_t, uint32_t> ChooseLeafCompactionRunRange(const LeafIndexEntry &leaf_index_entry);
 
     Status
-    SplitLeaf(SegmentBuilder *seg_builder, uint32_t seg_no, const LeafIndexEntry &leaf_index_entry,
+    SplitLeaf(SegmentBuilder *seg_builder, uint32_t seg_no, const LeafIndexEntry &leaf_index_entry,SequenceNumber seq_num,
               std::string *l1_max_key_buf, std::string *l2_max_key_buf, std::string *l1_index_entry_buf,
               std::string *l2_index_entry_buf);
     // silkstore stuff
     LeafStore * leaf_store_ = nullptr;
 };
+
+Status DestroyDB(const std::string& dbname, const Options& options);
 
 }  // namespace silkstore
 }  // namespace leveldb

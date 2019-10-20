@@ -7,7 +7,7 @@
 
 #include <stdint.h>
 #include <functional>
-
+#include <memory>
 #include "leveldb/slice.h"
 #include "table/block.h"
 
@@ -139,7 +139,7 @@ class SegmentManager {
 
     Status OpenSegment(uint32_t seg_id, Segment **seg_ptr);
 
-    Status NewSegmentBuilder(uint32_t *seg_id, SegmentBuilder **seg_builder_ptr);
+    Status NewSegmentBuilder(uint32_t *seg_id, std::unique_ptr<SegmentBuilder> &seg_builder_ptr);
 
     size_t ApproximateSize() { return 0; }
 

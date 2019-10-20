@@ -10,7 +10,7 @@
 #define MEM_CAPACITY (128* (1UL<<32))
 #endif
 const size_t kSegmentFileSizeThreshold = 64*1024*1024;
-
+const size_t kStorageBlocKSize = 4096;
 namespace leveldb {
 
 Options::Options()
@@ -24,6 +24,7 @@ Options::Options()
       max_memtbl_capacity(MEM_CAPACITY >> 1),
       segment_file_size_thresh(kSegmentFileSizeThreshold),
       leaf_max_num_miniruns(15),
+      storage_block_size(kStorageBlocKSize),
       memtbl_to_L0_ratio(30),
       max_open_files(1000),
       block_cache(nullptr),

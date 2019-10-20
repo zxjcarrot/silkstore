@@ -60,6 +60,8 @@ class LeafIndexEntry {
 
     uint32_t GetNumMiniRuns() const;
 
+    bool Empty() const { return GetNumMiniRuns() == 0; }
+
     // Return all index entries of MiniRun sorted on insert time
     std::vector<MiniRunIndexEntry> GetAllMiniRunIndexEntry(TraversalOrder order = backward) const;
 
@@ -70,6 +72,7 @@ class LeafIndexEntry {
 
     Slice GetRawData() const { return raw_data_; }
 
+    std::string ToString();
  private:
     Slice raw_data_;
 };
@@ -82,7 +85,7 @@ class LeafIndexEntryBuilder {
 
     LeafIndexEntry operator=(const LeafIndexEntryBuilder &) = delete;
 
-    static Status AppendMiniRunIndexEntry(const LeafIndexEntry &base,
+    static void AppendMiniRunIndexEntry(const LeafIndexEntry &base,
                                           const MiniRunIndexEntry &minirun_index_entry,
                                           std::string *buf,
                                           LeafIndexEntry *new_entry);
@@ -91,6 +94,12 @@ class LeafIndexEntryBuilder {
                                       uint32_t start,
                                       uint32_t end,
                                       const MiniRunIndexEntry &replacement,
+                                      std::string *buf,
+                                      LeafIndexEntry *new_entry);
+
+    static Status RemoveMiniRunRange(const LeafIndexEntry &base,
+                                      uint32_t start,
+                                      uint32_t end,
                                       std::string *buf,
                                       LeafIndexEntry *new_entry);
 };

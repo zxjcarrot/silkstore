@@ -652,16 +652,21 @@ void DBImpl::MaybeScheduleCompaction() {
   mutex_.AssertHeld();
   if (background_compaction_scheduled_) {
     // Already scheduled
+    Log(options_.info_log, "MaybeScheduleCompaction: background_compaction_scheduled_\n");
   } else if (shutting_down_.Acquire_Load()) {
     // DB is being deleted; no more background compactions
+    Log(options_.info_log, "MaybeScheduleCompaction: shutting down\n");
   } else if (!bg_error_.ok()) {
     // Already got an error; no more changes
+    Log(options_.info_log, "MaybeScheduleCompaction: error %s\n", bg_error_.ToString().c_str());
   } else if (imm_ == nullptr &&
              manual_compaction_ == nullptr &&
              !versions_->NeedsCompaction()) {
     // No work to be done
+    Log(options_.info_log, "MaybeScheduleCompaction: No work to be done\n");
   } else {
     background_compaction_scheduled_ = true;
+    Log(options_.info_log, "MaybeScheduleCompaction: scheduled a compaction work\n");
     env_->Schedule(&DBImpl::BGWork, this);
   }
 }
@@ -678,11 +683,13 @@ void DBImpl::BackgroundCall() {
   } else if (!bg_error_.ok()) {
     // No more background work after a background error.
   } else {
+    Log(options_.info_log, "Compaction starts\n");
     BackgroundCompaction();
   }
 
   background_compaction_scheduled_ = false;
 
+  Log(options_.info_log, "Compaction done\n");
   // Previous compaction may have produced too many files in a level,
   // so reschedule another compaction if needed.
   MaybeScheduleCompaction();

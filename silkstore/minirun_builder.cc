@@ -33,7 +33,7 @@ struct MiniRunBuilder::Rep {
     BlockBuilder index_block;
     std::string last_key;
     int64_t num_entries;
-    FilterBlockBuilder *filter_block;
+    FilterBlockBuilder *filter_block_builder;
 
     // We do not emit the index entry for a block until we have seen the
     // first key for the next data block.  This allows us to use shorter
@@ -61,7 +61,7 @@ struct MiniRunBuilder::Rep {
           data_block(&options),
           index_block(&index_block_options),
           num_entries(0),
-          filter_block((opt.filter_policy == nullptr)
+          filter_block_builder((opt.filter_policy == nullptr)
             ? nullptr : new FilterBlockBuilder(opt.filter_policy)),
           pending_index_entry(false) {
         index_block_options.block_restart_interval = 1;
@@ -73,13 +73,13 @@ MiniRunBuilder::MiniRunBuilder(const Options &options,
                                WritableFile *file,
                                uint64_t file_offset)
         : rep_(new Rep(options, file, file_offset)) {
-    if (rep_->filter_block != nullptr) {
-        rep_->filter_block->StartBlock(0);
+    if (rep_->filter_block_builder != nullptr) {
+        rep_->filter_block_builder->StartBlock(0);
     }
 }
 
 MiniRunBuilder::~MiniRunBuilder() {
-    delete rep_->filter_block;
+    delete rep_->filter_block_builder;
     delete rep_;
 }
 
@@ -99,8 +99,8 @@ void MiniRunBuilder::Add(const Slice &key, const Slice &value) {
         r->pending_index_entry = false;
     }
 
-    if (r->filter_block != nullptr) {
-        r->filter_block->AddKey(key);
+    if (r->filter_block_builder != nullptr) {
+        r->filter_block_builder->AddKey(key);
     }
 
     r->last_key.assign(key.data(), key.size());
@@ -125,7 +125,7 @@ void MiniRunBuilder::Flush() {
         r->pending_index_entry = true;
         r->status = r->file->Flush();
     }
-    if (r->filter_block != nullptr) {
+    if (r->filter_block_builder != nullptr) {
         //r->filter_block->StartBlock(r->offset);
     }
 }
@@ -196,8 +196,8 @@ Status MiniRunBuilder::Finish() {
     //BlockHandle filter_block_handle, metaindex_block_handle, index_block_handle;
 
     // Finalize filter block
-    if (ok() && r->filter_block != nullptr) {
-        r->finished_filter_block = r->filter_block->FinishWithoutOffsets();
+    if (ok() && r->filter_block_builder != nullptr) {
+        r->finished_filter_block = r->filter_block_builder->FinishWithoutOffsets();
         //WriteRawBlock(r->filter_block->Finish(), kNoCompression, &filter_block_handle);
     }
 
@@ -250,6 +250,20 @@ Status MiniRunBuilder::Finish() {
     return r->status;
 }
 
+// Return the index block for this minirun.
+// REQUIRES: Finish() has been called
+Slice MiniRunBuilder::IndexBlock() const {
+    Rep *r = rep_;
+    return r->finished_index_block;
+}
+
+// Return the filter block for this minirun.
+// REQUIRES: Finish() has been called
+Slice MiniRunBuilder::FilterBlock() const {
+    Rep *r = rep_;
+    return r->finished_filter_block;
+}
+
 void MiniRunBuilder::Reset(uint64_t file_offset) {
     Rep *r = rep_;
     r->start_offset = file_offset;
@@ -263,8 +277,10 @@ void MiniRunBuilder::Reset(uint64_t file_offset) {
     r->pending_index_entry = false;
     r->data_block.Reset();
     r->index_block.Reset();
-    r->filter_block->Reset();
-    r->filter_block->StartBlock(0);
+    if (r->filter_block_builder) {
+        r->filter_block_builder->Reset();
+        r->filter_block_builder->StartBlock(0);
+    }
 }
 
 uint64_t MiniRunBuilder::NumEntries() const {

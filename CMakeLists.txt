@@ -3,7 +3,7 @@
 # found in the LICENSE file. See the AUTHORS file for names of contributors.
 
 cmake_minimum_required(VERSION 3.9)
-project(leveldb VERSION 1.21.0 LANGUAGES C CXX)
+project(silkstore VERSION 1.21.0 LANGUAGES C CXX)
 
 # This project can use C11, but will gracefully decay down to C89.
 set(CMAKE_C_STANDARD 11)
@@ -294,6 +294,10 @@ if(LEVELDB_BUILD_TESTS)
   leveldb_test("${PROJECT_SOURCE_DIR}/util/env_test.cc")
   leveldb_test("${PROJECT_SOURCE_DIR}/util/status_test.cc")
   leveldb_test("${PROJECT_SOURCE_DIR}/util/no_destructor_test.cc")
+
+  leveldb_test("${PROJECT_SOURCE_DIR}/silkstore/silkstore_test.cc")
+
+  leveldb_test("${PROJECT_SOURCE_DIR}/silkstore/minirun_test.cc")
 
   if(NOT BUILD_SHARED_LIBS)
     leveldb_test("${PROJECT_SOURCE_DIR}/db/autocompact_test.cc")

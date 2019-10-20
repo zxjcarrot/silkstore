@@ -144,6 +144,11 @@ class LeafStore::LeafStoreIterator : public Iterator {
             if (leaf_it_ != nullptr)
                 delete leaf_it_;
             leaf_it_ = store_->NewIteratorForLeaf(ropts_, index_entry, status_);
+        } else {
+            if (leaf_it_ != nullptr)
+                delete leaf_it_;
+            leaf_it_ = nullptr;
+            status_ = Status::Corruption("Empty Leaf Reference");
         }
     }
 };
@@ -180,9 +185,7 @@ Slice MiniRunIndexEntry::GetFilterData() const {
     return Slice(p, filter_data_len_);
 }
 
-LeafIndexEntry::LeafIndexEntry(const Slice &data) : raw_data_(data) {
-    assert(raw_data_.size() >= 4);
-}
+LeafIndexEntry::LeafIndexEntry(const Slice &data) : raw_data_(data) {}
 
 uint32_t LeafIndexEntry::GetNumMiniRuns() const {
     if (raw_data_.empty())
@@ -202,6 +205,19 @@ std::vector<MiniRunIndexEntry> LeafIndexEntry::GetAllMiniRunIndexEntry(
     return res;
 }
 
+
+std::string LeafIndexEntry::ToString() {
+    auto entries = GetAllMiniRunIndexEntry();
+    std::string res = "[num_entries=" + std::to_string(entries.size()) + ",";
+    for (size_t i = 0; i < entries.size(); ++i) {
+        if (i > 0)
+            res += ",";
+        res += std::to_string(entries.size() - i - 1) + "(seg_num=" + std::to_string(entries[i].GetSegmentNumber()) + ", run_no=" + std::to_string(entries[i].GetRunNumberWithinSegment()) + ")";
+    }
+    res += "]";
+    return res;
+}
+
 void LeafIndexEntry::ForEachMiniRunIndexEntry(
         std::function<bool(const MiniRunIndexEntry &, uint32_t)> processor,
         TraversalOrder order) const {
@@ -212,14 +228,15 @@ void LeafIndexEntry::ForEachMiniRunIndexEntry(
 
     if (order == TraversalOrder::backward) {
         const char *p = raw_data_.data() + raw_data_.size() - 4;
-        for (int i = num_entries - 1; i >= 0; ++i) {
+        for (int i = num_entries - 1; i >= 0; --i) {
             p -= 4;
             assert(p >= raw_data_.data());
             uint32_t entry_size = DecodeFixed32(p);
+            assert(entry_size > 0);
             p -= entry_size;
             assert(p >= raw_data_.data());
             MiniRunIndexEntry index_entry = MiniRunIndexEntry(Slice(p, entry_size));
-            bool early_return = processor(index_entry, num_entries - i);
+            bool early_return = processor(index_entry, i);
             if (early_return)
                 return;
         }
@@ -230,12 +247,13 @@ void LeafIndexEntry::ForEachMiniRunIndexEntry(
             p -= 4;
             assert(p >= raw_data_.data());
             uint32_t entry_size = DecodeFixed32(p);
+            assert(entry_size > 0);
             p -= entry_size;
             assert(p >= raw_data_.data());
             MiniRunIndexEntry index_entry = MiniRunIndexEntry(Slice(p, entry_size));
             entries.push_back(index_entry);
         }
-
+        std::reverse(entries.begin(), entries.end());
         for (int i = 0; i < entries.size(); ++i) {
             bool early_return = processor(entries[i], i);
             if (early_return)
@@ -244,22 +262,25 @@ void LeafIndexEntry::ForEachMiniRunIndexEntry(
     }
 }
 
-Status LeafIndexEntryBuilder::AppendMiniRunIndexEntry(
+void LeafIndexEntryBuilder::AppendMiniRunIndexEntry(
         const LeafIndexEntry &base,
         const MiniRunIndexEntry &minirun_index_entry,
         std::string *buf,
         LeafIndexEntry *new_entry) {
+    buf->clear();
     buf->append(base.GetRawData().data(), base.GetRawData().size());
     if (buf->size()) {
+        assert(buf->size() >= 4);
         // Erase footer (# of minirun index entries).
         buf->resize(buf->size() - 4);
     }
-    buf->append(minirun_index_entry.GetRawData().data(), minirun_index_entry.GetRawData().size());
-    PutFixed32(buf, minirun_index_entry.GetRawData().size());
+    size_t entry_size = minirun_index_entry.GetRawData().size();
+    assert(entry_size > 0);
+    buf->append(minirun_index_entry.GetRawData().data(), entry_size);
+    PutFixed32(buf, entry_size);
     // Append new footer (# of minirun index entries).
     PutFixed32(buf, base.GetNumMiniRuns() + 1);
     *new_entry = LeafIndexEntry(Slice(*buf));
-    return Status::OK();
 }
 
 Status LeafIndexEntryBuilder::ReplaceMiniRunRange(const LeafIndexEntry &base,
@@ -267,7 +288,7 @@ Status LeafIndexEntryBuilder::ReplaceMiniRunRange(const LeafIndexEntry &base,
                                                   const MiniRunIndexEntry &replacement,
                                                   std::string *buf,
                                                   LeafIndexEntry *new_entry) {
-    if (start > base.GetNumMiniRuns() || end > base.GetNumMiniRuns())
+    if (start >= base.GetNumMiniRuns() || end >= base.GetNumMiniRuns())
         return Status::InvalidArgument(
                 "[start, end] not within bound of [0, " + std::to_string(base.GetNumMiniRuns()) + "]");
     buf->clear();
@@ -275,20 +296,50 @@ Status LeafIndexEntryBuilder::ReplaceMiniRunRange(const LeafIndexEntry &base,
     auto processor = [&](const MiniRunIndexEntry &entry, uint32_t idx) {
         if (start <= idx && idx <= end) {
             if (idx == start) {
-                buf->append(replacement.GetRawData().data(), replacement.GetRawData().size());
-                PutFixed32(buf, replacement.GetRawData().size());
+                size_t entry_size = replacement.GetRawData().size();
+                assert(entry_size);
+                buf->append(replacement.GetRawData().data(), entry_size);
+                PutFixed32(buf, entry_size);
                 ++new_num_entries;
             }
         } else {
-            buf->append(entry.GetRawData().data(), entry.GetRawData().size());
-            PutFixed32(buf, replacement.GetRawData().size());
+            size_t entry_size = entry.GetRawData().size();
+            assert(entry_size);
+            buf->append(entry.GetRawData().data(), entry_size);
+            PutFixed32(buf, entry_size);
             ++new_num_entries;
         }
         return false;
     };
     base.ForEachMiniRunIndexEntry(processor, LeafIndexEntry::TraversalOrder::forward);
     // Append footer (# of minirun index entries).
-    PutFixed32(buf, base.GetNumMiniRuns() + 1);
+    PutFixed32(buf, new_num_entries);
+    *new_entry = LeafIndexEntry(Slice(*buf));
+    return Status::OK();
+}
+
+Status LeafIndexEntryBuilder::RemoveMiniRunRange(const LeafIndexEntry &base,
+                                 uint32_t start,
+                                 uint32_t end,
+                                 std::string *buf,
+                                 LeafIndexEntry *new_entry) {
+    if (start >= base.GetNumMiniRuns() || end >= base.GetNumMiniRuns())
+        return Status::InvalidArgument(
+                "[start, end] not within bound of [0, " + std::to_string(base.GetNumMiniRuns()) + "]");
+    buf->clear();
+    uint32_t new_num_entries = 0;
+    auto processor = [&](const MiniRunIndexEntry &entry, uint32_t idx) {
+        if (start <= idx && idx <= end) {
+        } else {
+            buf->append(entry.GetRawData().data(), entry.GetRawData().size());
+            PutFixed32(buf, entry.GetRawData().size());
+            ++new_num_entries;
+        }
+        return false;
+    };
+    base.ForEachMiniRunIndexEntry(processor, LeafIndexEntry::TraversalOrder::forward);
+    // Append footer (# of minirun index entries).
+    PutFixed32(buf, new_num_entries);
     *new_entry = LeafIndexEntry(Slice(*buf));
     return Status::OK();
 }
@@ -306,8 +357,10 @@ Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::str
         return Status::NotFound("");
     Slice index_data = it->value();
     Status s;
+    Status key_status = Status::NotFound("");
     LeafIndexEntry index_entry(index_data);
-
+    ParsedInternalKey parsed_lookup_key;
+    ParseInternalKey(key.internal_key(), &parsed_lookup_key);
     auto processor = [&, this](const MiniRunIndexEntry &minirun_index_entry, uint32_t) -> bool {
         if (options_.filter_policy) {
             FilterBlockReader filter(options_.filter_policy, minirun_index_entry.GetFilterData());
@@ -338,12 +391,20 @@ Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::str
                 s = Status::Corruption("key corruption");
                 return true;
             } else {
-                if (user_cmp_->Compare(parsed_key.user_key, key.user_key()) == 0) {
+                auto parsed_user_key = parsed_key.user_key;
+                auto key_user_key = key.user_key();
+                auto parsed_user_value = iter->value();
+                if (user_cmp_->Compare(parsed_user_key, key_user_key) == 0) {
                     if (parsed_key.type == kTypeValue) { // kFound
                         value->assign(iter->value().data(), iter->value().size());
-                        s = Status::OK();
+                        key_status = Status::OK();
+                        iter->Prev();
+                        if (iter->Valid()) {
+                            auto prev_key = iter->key();
+                            auto prev_value = iter->key();
+                        }
                     } else { // kDeleted
-                        s = Status::NotFound("");
+                        key_status = Status::NotFound("");
                     }
                     return true;
                 }
@@ -354,7 +415,7 @@ Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::str
     };
 
     index_entry.ForEachMiniRunIndexEntry(processor, LeafIndexEntry::TraversalOrder::backward);
-    return s;
+    return !s.ok() ? s : key_status;
 }
 
 static void NewIteratorForLeafCleanupFunc(void *arg1, void *) {
@@ -377,7 +438,8 @@ Iterator *LeafStore::NewIteratorForLeaf(const ReadOptions &options, const LeafIn
                 return true; // error, early return
             MiniRun *run;
             Block index_block(BlockContents{minirun_index_entry.GetBlockIndexData(), false, false});
-            s = seg->OpenMiniRun(run_no, index_block, &run);
+            uint32_t run_idx_in_seg = minirun_index_entry.GetRunNumberWithinSegment();
+            s = seg->OpenMiniRun(run_idx_in_seg, index_block, &run);
             if (!s.ok())
                 return true; // error, early return
             Iterator *iter = run->NewIterator(options);
@@ -387,6 +449,8 @@ Iterator *LeafStore::NewIteratorForLeaf(const ReadOptions &options, const LeafIn
 
         return false;
     };
+    // Traverse the minirun index entries in backward order so that
+    // the latest version of the keys come first in the merged ordered sequence.
     leaf_index_entry.ForEachMiniRunIndexEntry(processor, LeafIndexEntry::TraversalOrder::backward);
     if (!s.ok()) {
         return nullptr;

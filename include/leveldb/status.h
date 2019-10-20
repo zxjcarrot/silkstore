@@ -52,6 +52,10 @@ class LEVELDB_EXPORT Status {
     return Status(kIOError, msg, msg2);
   }
 
+  static Status SplitUnderflow(const Slice& msg, const Slice& msg2 = Slice()) {
+    return Status(kSplitUnderflow, msg, msg2);
+  }
+
   // Returns true iff the status indicates success.
   bool ok() const { return (state_ == nullptr); }
 
@@ -69,6 +73,9 @@ class LEVELDB_EXPORT Status {
 
   // Returns true iff the status indicates an InvalidArgument.
   bool IsInvalidArgument() const { return code() == kInvalidArgument; }
+
+  // Returns true iff the status indicates an InvalidArgument.
+  bool IsSplitUnderflow() const { return code() == kSplitUnderflow; }
 
   // Return a string representation of this status suitable for printing.
   // Returns the string "OK" for success.
@@ -88,7 +95,8 @@ class LEVELDB_EXPORT Status {
     kCorruption = 2,
     kNotSupported = 3,
     kInvalidArgument = 4,
-    kIOError = 5
+    kIOError = 5,
+    kSplitUnderflow = 6,
   };
 
   Code code() const {
