@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
+#include <sstream>
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,6 +11,7 @@
 #include "leveldb/env.h"
 #include "leveldb/filter_policy.h"
 #include "leveldb/write_batch.h"
+#include "silkstore/silkstore_impl.h"
 #include "port/port.h"
 #include "util/crc32c.h"
 #include "util/histogram.h"
@@ -61,7 +63,7 @@ static const char* FLAGS_benchmarks =
     ;
 
 // Number of key/values to place in database
-static int FLAGS_num = 1000000;
+static int FLAGS_num = 100000000;
 
 // Number of read operations to do.  If negative, do FLAGS_num reads.
 static int FLAGS_reads = -1;
@@ -100,7 +102,7 @@ static int FLAGS_open_files = 0;
 
 // Bloom filter bits per key.
 // Negative means use default settings.
-static int FLAGS_bloom_bits = -1;
+static int FLAGS_bloom_bits = 10;
 
 // If true, do not destroy the existing database.  If you set this
 // flag and also specify a benchmark that wants a fresh database, that
@@ -112,6 +114,14 @@ static bool FLAGS_reuse_logs = false;
 
 // Use the db with the following name.
 static const char* FLAGS_db = nullptr;
+
+// Test db impl type: leveldb/silkstore
+static const char* FLAGS_db_type = "leveldb";
+
+// Mixed workload spec
+static const char* FLAGS_mixed_wl_spec = nullptr;
+
+static int FLAGS_num_ops_in_mixed_wl = 0;
 
 namespace leveldb {
 
@@ -314,6 +324,200 @@ struct ThreadState {
 
 }  // namespace
 
+
+class Workload {
+public:
+    Workload(int tid, int weight) : tid(tid), weight(weight) {}
+    virtual void work(ThreadState * thread)=0;
+    virtual void fillone(ThreadState * thread)=0;
+    virtual ~Workload(){}
+    int Weight() { return weight; }
+protected:
+    int tid;
+    int weight;
+};
+
+class ReadWriteWorkload : public Workload {
+public:
+    ReadWriteWorkload(DB * db, int tid, int table_size, int write_ratio_in_percent, int table_weight): Workload(tid, table_weight), db_(db), table_size(table_size), write_ratio_in_percent(write_ratio_in_percent), value_size_(FLAGS_value_size) {}
+
+    void work(ThreadState * thread) override {
+        const int k = thread->rand.Next() % table_size;
+        snprintf(key, sizeof(key), "%d.%016d", tid, k);
+        if (thread->rand.Next() % 100 < write_ratio_in_percent) {
+            batch.Clear();
+            batch.Put(key, gen.Generate(value_size_));
+            bytes += value_size_ + strlen(key);
+            s = db_->Write(write_options_, &batch);
+            if (!s.ok()) {
+                fprintf(stderr, "put error: %s\n", s.ToString().c_str());
+                exit(1);
+            }
+        } else {
+            if (db_->Get(options, key, &value).ok()) {
+                found++;
+            }
+        }
+
+        thread->stats.FinishedSingleOp();
+    }
+
+    void fillone(ThreadState * thread) override {
+        const int k = thread->rand.Next() % table_size;
+        snprintf(key, sizeof(key), "%d.%016d", tid, k);
+        batch.Clear();
+        batch.Put(key, gen.Generate(value_size_));
+        bytes += value_size_ + strlen(key);
+        s = db_->Write(write_options_, &batch);
+        if (!s.ok()) {
+            fprintf(stderr, "put error: %s\n", s.ToString().c_str());
+            exit(1);
+        }
+        thread->stats.FinishedSingleOp();
+    }
+
+protected:
+    DB * db_;
+    char key[100];
+    ReadOptions options;
+    std::string value;
+    int found = 0;
+    int table_size;
+    int write_ratio_in_percent;
+    WriteBatch batch;
+    RandomGenerator gen;
+    size_t bytes = 0;
+    size_t value_size_ = 0;
+    Status s;
+    WriteOptions write_options_;
+};
+//
+//class ReadOnlyWorkload : public Workload {
+//public:
+//    ReadOnlyWorkload(DB* db, int table_size): rw(db, table_size, 0) {}
+//
+//    void work(ThreadState * thread, int tid) override {
+//        rw.work(thread, tid);
+//    }
+//private:
+//    ReadWriteWorkload rw;
+//};
+//
+///**
+// * 5% writes, 95% reads.
+// */
+//class ReadMostlyWorkload : public Workload {
+//public:
+//    ReadMostlyWorkload(DB* db, int table_size): rw(db, table_size, 5) {}
+//
+//    void work(ThreadState * thread, int tid) override {
+//        rw.work(thread, tid);
+//    }
+//private:
+//    ReadWriteWorkload rw;
+//};
+///**
+// * 100% writes
+// */
+//class WriteOnlyWorkload : public Workload {
+//public:
+//    WriteOnlyWorkload(DB* db, int table_size): rw(db, table_size, 100) {}
+//
+//    void work(ThreadState * thread, int tid) override {
+//        rw.work(thread, tid);
+//    }
+//private:
+//    ReadWriteWorkload rw;
+//};
+
+class WorkloadSelector {
+public:
+    WorkloadSelector(const std::vector<Workload*> workloads) : workloads(workloads){}
+    virtual ~WorkloadSelector(){}
+    virtual int Select(ThreadState * thread)=0;
+
+protected:
+    std::vector<Workload*> workloads;
+};
+
+class RandomWorkloadSelector: public WorkloadSelector {
+public:
+    RandomWorkloadSelector(const std::vector<Workload*> workloads) : WorkloadSelector(workloads){}
+
+    int Select(ThreadState * thread) override{
+        return thread->rand.Next() % workloads.size();
+    }
+};
+
+class WeightedRandomWorkloadSelector: public WorkloadSelector {
+public:
+    WeightedRandomWorkloadSelector(const std::vector<Workload*> workloads) : WorkloadSelector(workloads){
+        for (int i = 0; i < workloads.size(); ++i) {
+            int weight = workloads[i]->Weight();
+            for (int j = 0; j < weight; ++j)
+                dice.push_back(i);
+        }
+        std::random_shuffle(dice.begin(), dice.end());
+    }
+
+    int Select(ThreadState * thread) override {
+        return dice[thread->rand.Next() % dice.size()];
+    }
+private:
+    std::vector<int> dice;
+};
+
+// workload mixture spec syntax:
+// (${write_ratio}-${table_size}-${weight};) *
+//
+class WorkloadMixture {
+private:
+    std::vector<Workload*> workloads;
+    WorkloadSelector * selector;
+public:
+    WorkloadMixture(const std::vector<Workload*> workloads, WorkloadSelector * selector) : workloads(workloads), selector(selector) {}
+
+    void work(ThreadState * thread) {
+        int wid = selector->Select(thread);
+        workloads[wid]->work(thread);
+    }
+
+    void fill(ThreadState * thread) {
+        int wid = selector->Select(thread);
+        workloads[wid]->fillone(thread);
+    }
+
+    static std::vector<std::string> Split(const std::string &s, char delim) {
+        std::stringstream ss(s);
+        std::string item;
+        std::vector<std::string> elems;
+        while (std::getline(ss, item, delim)) {
+            elems.push_back(std::move(item)); // if C++11 (based on comment from @mchiasson)
+        }
+        return elems;
+    }
+
+    static WorkloadMixture* ParseFromWorkloadSpec(DB *db, const std::string & spec) {
+        std::vector<Workload*> workloads;
+        auto parts = Split(spec, ';');
+        for (int i = 0; i < parts.size(); ++i) {
+            std::string p = parts[i];
+            if (p.empty())
+                continue;
+            auto wparts = Split(p, '-');
+            assert(wparts.size() == 3);
+            int write_ratio = std::stoi(wparts[0]);
+            int table_size = std::stoi(wparts[1]);
+            int table_weight = std::stoi(wparts[2]);
+            int tid = i;
+            ReadWriteWorkload * rw = new ReadWriteWorkload(db, tid, table_size, write_ratio, table_weight);
+            workloads.push_back(rw);
+        }
+        return new WorkloadMixture(workloads, new WeightedRandomWorkloadSelector(workloads));
+    }
+
+};
+
 class Benchmark {
  private:
   Cache* cache_;
@@ -340,6 +544,7 @@ class Benchmark {
     fprintf(stdout, "FileSize:   %.1f MB (estimated)\n",
             (((kKeySize + FLAGS_value_size * FLAGS_compression_ratio) * num_)
              / 1048576.0));
+      fprintf(stdout, "DBImplType:  %s\n", FLAGS_db_type);
     PrintWarnings();
     fprintf(stdout, "------------------------------------------------\n");
   }
@@ -420,7 +625,11 @@ class Benchmark {
       }
     }
     if (!FLAGS_use_existing_db) {
-      DestroyDB(FLAGS_db, Options());
+      if (FLAGS_db_type == std::string("silkstore")) {
+        leveldb::silkstore::DestroyDB(FLAGS_db, Options());
+      } else {
+        leveldb::DestroyDB(FLAGS_db, Options());
+      }
     }
   }
 
@@ -522,6 +731,12 @@ class Benchmark {
         PrintStats("leveldb.stats");
       } else if (name == Slice("sstables")) {
         PrintStats("leveldb.sstables");
+      } else if (name == Slice("mixed_workload")) {
+        fresh_db = false;
+        method = &Benchmark::MixedWorkload;
+      } else if (name == Slice("mixed_workload_fillrandom")) {
+        fresh_db = true;
+        method = &Benchmark::MixedWorkloadFillRandom;
       } else {
         if (name != Slice()) {  // No error message for empty name
           fprintf(stderr, "unknown benchmark '%s'\n", name.ToString().c_str());
@@ -536,7 +751,11 @@ class Benchmark {
         } else {
           delete db_;
           db_ = nullptr;
-          DestroyDB(FLAGS_db, Options());
+          if (FLAGS_db_type == std::string("silkstore")) {
+            leveldb::silkstore::DestroyDB(FLAGS_db, Options());
+          } else {
+            leveldb::DestroyDB(FLAGS_db, Options());
+          }
           Open();
         }
       }
@@ -703,18 +922,24 @@ class Benchmark {
   }
 
   void Open() {
-    assert(db_ == nullptr);
-    Options options;
-    options.env = g_env;
-    options.create_if_missing = !FLAGS_use_existing_db;
-    options.block_cache = cache_;
-    options.write_buffer_size = FLAGS_write_buffer_size;
-    options.max_file_size = FLAGS_max_file_size;
-    options.block_size = FLAGS_block_size;
-    options.max_open_files = FLAGS_open_files;
-    options.filter_policy = filter_policy_;
-    options.reuse_logs = FLAGS_reuse_logs;
-    Status s = DB::Open(options, FLAGS_db, &db_);
+      assert(db_ == nullptr);
+      Options options;
+      options.env = g_env;
+      options.create_if_missing = !FLAGS_use_existing_db;
+      options.block_cache = cache_;
+      options.write_buffer_size = FLAGS_write_buffer_size;
+      options.max_file_size = FLAGS_max_file_size;
+      options.block_size = FLAGS_block_size;
+      options.max_open_files = FLAGS_open_files;
+      options.filter_policy = filter_policy_;
+      options.reuse_logs = FLAGS_reuse_logs;
+      options.compression = kNoCompression;
+      Status s;
+      if (FLAGS_db_type == std::string("silkstore")) {
+        DB::OpenSilkStore(options, FLAGS_db, &db_);
+      } else {
+        DB::Open(options, FLAGS_db, &db_);
+      }
     if (!s.ok()) {
       fprintf(stderr, "open error: %s\n", s.ToString().c_str());
       exit(1);
@@ -797,6 +1022,11 @@ class Benchmark {
     ReadOptions options;
     std::string value;
     int found = 0;
+    char msg[100];
+    std::string num_leaves;
+    db_->GetProperty("silkstore.num_leaves", &num_leaves);
+    snprintf(msg, sizeof(msg), "num_leaves %s", num_leaves.c_str());
+    thread->stats.AddMessage(msg);
     for (int i = 0; i < reads_; i++) {
       char key[100];
       const int k = thread->rand.Next() % FLAGS_num;
@@ -806,9 +1036,14 @@ class Benchmark {
       }
       thread->stats.FinishedSingleOp();
     }
-    char msg[100];
-    snprintf(msg, sizeof(msg), "(%d of %d found)", found, num_);
+
+    std::string runs_searched;
+    db_->GetProperty("silkstore.runs_searched", &runs_searched);
+    snprintf(msg, sizeof(msg), "(%d of %d found), runs_searched %s ", found, num_, runs_searched.c_str());
     thread->stats.AddMessage(msg);
+    //std::string leaf_stats;
+    //db_->GetProperty("silkstore.leaf_stats", &leaf_stats);
+    //thread->stats.AddMessage(leaf_stats);
   }
 
   void ReadMissing(ThreadState* thread) {
@@ -925,6 +1160,27 @@ class Benchmark {
     fprintf(stdout, "\n%s\n", stats.c_str());
   }
 
+  void MixedWorkload(ThreadState * thread) {
+      WorkloadMixture * mixture = WorkloadMixture::ParseFromWorkloadSpec(db_, FLAGS_mixed_wl_spec);
+      assert(mixture);
+      for (int i = 0; i < FLAGS_num_ops_in_mixed_wl; ++i) {
+        mixture->work(thread);
+      }
+  }
+
+    void MixedWorkloadFillRandom(ThreadState * thread) {
+        WorkloadMixture * mixture = WorkloadMixture::ParseFromWorkloadSpec(db_, FLAGS_mixed_wl_spec);
+        assert(mixture);
+        for (int i = 0; i < FLAGS_num_ops_in_mixed_wl; ++i) {
+            mixture->fill(thread);
+        }
+        char msg[100];
+        std::string num_leaves;
+        db_->GetProperty("silkstore.num_leaves", &num_leaves);
+        snprintf(msg, sizeof(msg), "num_leaves %s", num_leaves.c_str());
+        thread->stats.AddMessage(msg);
+    }
+
   static void WriteToFile(void* arg, const char* buf, int n) {
     reinterpret_cast<WritableFile*>(arg)->Append(Slice(buf, n));
   }
@@ -947,7 +1203,9 @@ class Benchmark {
   }
 };
 
+
 }  // namespace leveldb
+
 
 int main(int argc, char** argv) {
   FLAGS_write_buffer_size = leveldb::Options().write_buffer_size;
@@ -995,6 +1253,12 @@ int main(int argc, char** argv) {
       FLAGS_open_files = n;
     } else if (strncmp(argv[i], "--db=", 5) == 0) {
       FLAGS_db = argv[i] + 5;
+    } else if (strncmp(argv[i], "--db_type=", 10) == 0) {
+      FLAGS_db_type = argv[i] + 10;
+    } else if (strncmp(argv[i], "--mixed_wl_sepc=", 16) == 0) {
+      FLAGS_mixed_wl_spec = argv[i] + 16;
+    } else if (strncmp(argv[i], "--num_ops_in_mixed_wl=", 22) == 0) {
+      FLAGS_num_ops_in_mixed_wl = std::stoi(argv[i] + 22);
     } else {
       fprintf(stderr, "Invalid flag '%s'\n", argv[i]);
       exit(1);
@@ -1005,8 +1269,8 @@ int main(int argc, char** argv) {
 
   // Choose a location for the test database if none given with --db=<path>
   if (FLAGS_db == nullptr) {
-      leveldb::g_env->GetTestDirectory(&default_db_path);
-      default_db_path += "/dbbench";
+      //leveldb::g_env->GetTestDirectory(&default_db_path);
+      default_db_path = "/mnt/900p/dbbench";
       FLAGS_db = default_db_path.c_str();
   }
 

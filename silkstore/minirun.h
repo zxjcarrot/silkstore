@@ -96,6 +96,8 @@ class MiniRunBuilder {
     // Finish() call, returns the size of the final generated file.
     uint64_t FileSize() const;
 
+    // Size of the current run being built
+    uint32_t GetCurrentRunDataSize() const;
  private:
     bool ok() const { return status().ok(); }
 

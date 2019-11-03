@@ -120,22 +120,25 @@ TEST(MinirunTest, MiniRunIndexEntryTest) {
     string filter_block_contents = "filter_data";
 
     string buf1;
-    auto e1 = MiniRunIndexEntry::Build(0, 0, Slice(index_block_contents), Slice(filter_block_contents), &buf1);
+    auto e1 = MiniRunIndexEntry::Build(0, 0, Slice(index_block_contents), Slice(filter_block_contents), 0, &buf1);
 
     ASSERT_EQ(e1.GetSegmentNumber(), 0);
     ASSERT_EQ(e1.GetRunNumberWithinSegment(), 0);
+    ASSERT_EQ(e1.GetRunDataSize(), 0);
     ASSERT_EQ(e1.GetBlockIndexData().ToString(), index_block_contents);
     ASSERT_EQ(e1.GetFilterData().ToString(), filter_block_contents);
 
     string buf2;
-    auto e2 = MiniRunIndexEntry::Build(2, 1, Slice(index_block_contents), Slice(filter_block_contents), &buf2);
+    auto e2 = MiniRunIndexEntry::Build(2, 1, Slice(index_block_contents), Slice(filter_block_contents), 0, &buf2);
     ASSERT_EQ(e2.GetSegmentNumber(), 2);
     ASSERT_EQ(e2.GetRunNumberWithinSegment(), 1);
+    ASSERT_EQ(e2.GetRunDataSize(), 0);
     ASSERT_EQ(e2.GetBlockIndexData().ToString(), index_block_contents);
     ASSERT_EQ(e2.GetFilterData().ToString(), filter_block_contents);
 
     MiniRunIndexEntry e1_dup(e1.GetRawData());
     ASSERT_EQ(e1_dup.GetFilterData().ToString(), e1.GetFilterData().ToString());
+    ASSERT_EQ(e1_dup.GetRunDataSize(), e1.GetRunDataSize());
     ASSERT_EQ(e1_dup.GetBlockIndexData().ToString(), e1.GetBlockIndexData().ToString());
     ASSERT_EQ(e1_dup.GetRunNumberWithinSegment(), e1.GetRunNumberWithinSegment());
     ASSERT_EQ(e1_dup.GetSegmentNumber(), e1.GetSegmentNumber());
@@ -146,7 +149,7 @@ TEST(MinirunTest, LeafIndexEntryTest) {
         LeafIndexEntry base;
         ASSERT_TRUE(base.Empty());
         string buf1;
-        auto e1 = MiniRunIndexEntry::Build(0, 0, Slice(), Slice(), &buf1);
+        auto e1 = MiniRunIndexEntry::Build(0, 0, Slice(), Slice(), 0, &buf1);
         string buf;
         LeafIndexEntry new_entry;
         LeafIndexEntryBuilder::AppendMiniRunIndexEntry(base, e1, &buf, &new_entry);
@@ -155,6 +158,7 @@ TEST(MinirunTest, LeafIndexEntryTest) {
         auto minirun_index_entries = new_entry.GetAllMiniRunIndexEntry();
         ASSERT_EQ(minirun_index_entries.size(), 1);
         ASSERT_EQ(minirun_index_entries[0].GetSegmentNumber(), 0);
+        ASSERT_EQ(minirun_index_entries[0].GetRunDataSize(), 0);
         ASSERT_EQ(minirun_index_entries[0].GetRunNumberWithinSegment(), 0);
         ASSERT_EQ(minirun_index_entries[0].GetBlockIndexData().ToString(), Slice().ToString());
         ASSERT_EQ(minirun_index_entries[0].GetFilterData().ToString(), Slice().ToString());
@@ -166,7 +170,7 @@ TEST(MinirunTest, LeafIndexEntryTest) {
         std::vector<string> bufs(eNum);
         std::vector<string> new_entry_bufs(eNum);
         for (int i = 0; i < eNum; ++i) {
-            auto e1 = MiniRunIndexEntry::Build(i, i, Slice(std::to_string(i)), Slice(std::to_string(i)), &bufs[i]);
+            auto e1 = MiniRunIndexEntry::Build(i, i, Slice(std::to_string(i)), Slice(std::to_string(i)), 0, &bufs[i]);
             LeafIndexEntryBuilder::AppendMiniRunIndexEntry(base_entry, e1, &new_entry_bufs[i], &new_entry);
             base_entry = new_entry;
         }
@@ -200,7 +204,7 @@ TEST(MinirunTest, LeafIndexEntryTest) {
             for (int i = 0; i < eNum; ++i) {
                 bufs[0].clear();
                 new_entry_bufs[0].clear();
-                auto e = MiniRunIndexEntry::Build(eNum * 2, eNum * 2, Slice(std::to_string(eNum * 2)), Slice(std::to_string(eNum * 2)), &bufs[0]);
+                auto e = MiniRunIndexEntry::Build(eNum * 2, eNum * 2, Slice(std::to_string(eNum * 2)), Slice(std::to_string(eNum * 2)), 0, &bufs[0]);
                 int replace_start = i;
                 int replace_end = std::min(i + 10, eNum - 1);
                 int range_size = replace_end - replace_start + 1;
@@ -220,7 +224,7 @@ TEST(MinirunTest, LeafIndexEntryTest) {
             for (int i = 0; i < eNum; ++i) {
                 bufs[0].clear();
                 new_entry_bufs[0].clear();
-                auto e = MiniRunIndexEntry::Build(eNum * 2, eNum * 2, Slice(std::to_string(eNum * 2)), Slice(std::to_string(eNum * 2)), &bufs[0]);
+                auto e = MiniRunIndexEntry::Build(eNum * 2, eNum * 2, Slice(std::to_string(eNum * 2)), Slice(std::to_string(eNum * 2)), 0, &bufs[0]);
                 int remove_start = i;
                 int remove_end = std::min(i + 10, eNum - 1);
                 int range_size = remove_end - remove_start + 1;

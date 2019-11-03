@@ -34,7 +34,9 @@ static std::string RandomString(Random* rnd, int len) {
 }
 
 static std::string RandomNumberKey(Random* rnd) {
-    return std::to_string(rand() % 100000);
+    char key[100];
+    snprintf(key, sizeof(key), "%016d\n", rand() % 1000000);
+    return std::string(key, 16);
 }
 
 
@@ -560,8 +562,7 @@ TEST(DBTest, RandomKeyTest) {
     Random rnd(0);
     std::vector<std::string> keys(kNum);
     for (int i = 0; i < kNum; ++i) {
-        std::string key = RandomNumberKey(&rnd);
-        keys[i] = key;
+        keys[i] = RandomNumberKey(&rnd);
     }
     std::map<std::string, std::string> m;
     for (int i = 0; i < kNum; i++) {
@@ -571,8 +572,9 @@ TEST(DBTest, RandomKeyTest) {
 
         ASSERT_OK(Put(key, value));
         m[key] = value;
+
         for (int j = 0; j < 1; ++j) {
-            int idx = i < 4584 ? i : 4584;
+            int idx = std::min(3, i);
             auto res = Get(keys[idx]);
             auto ans = m[keys[idx]];
             if (res != ans) {
@@ -581,6 +583,7 @@ TEST(DBTest, RandomKeyTest) {
             }
             ASSERT_EQ(res, ans);
         }
+
     }
 
     Reopen(nullptr);

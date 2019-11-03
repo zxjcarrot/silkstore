@@ -14,7 +14,7 @@
 #include "silkstore/silkstore_iter.h"
 #include "silkstore/util.h"
 
-
+int runs_searched = 0;
 namespace leveldb {
 
 Status DB::OpenSilkStore(const Options &options,
@@ -261,6 +261,8 @@ Status SilkStore::Recover() {
     MutexLock g(&mutex_);
     this->leaf_index_options_.create_if_missing = true;
     this->leaf_index_options_.filter_policy = NewBloomFilterPolicy(10);
+    this->leaf_index_options_.block_cache = NewLRUCache(8 << 26);
+    this->leaf_index_options_.compression = kNoCompression;
     Status s = OpenIndex(this->leaf_index_options_);
 
     if (!s.ok()) return s;
@@ -397,6 +399,7 @@ Status SilkStore::MakeRoomForWrite(bool force) {
                     (memtable_capacity_ + segment_manager_->ApproximateSize()) / options_.memtbl_to_L0_ratio;
             new_memtable_capacity = std::min(options_.max_memtbl_capacity,
                                              std::max(options_.write_buffer_size, new_memtable_capacity));
+            Log(options_.info_log, "new memtable capacity %llu\n", new_memtable_capacity);
             memtable_capacity_ = new_memtable_capacity;
             allowed_num_leaves = std::ceil(new_memtable_capacity / (options_.storage_block_size + 0.0));
             mem_ = new MemTable(internal_comparator_);
@@ -537,6 +540,41 @@ Status SilkStore::Write(const WriteOptions &options, WriteBatch *my_batch) {
     return status;
 }
 
+bool SilkStore::GetProperty(const Slice &property, std::string *value) {
+    if (property.ToString() == "silkstore.runs_searched") {
+        *value = std::to_string(runs_searched);
+        return true;
+    } else if (property.ToString() == "silkstore.num_leaves") {
+        auto it = leaf_index_->NewIterator(ReadOptions{});
+        DeferCode c([it](){delete it;});
+        int cnt = 0;
+        it->SeekToFirst();
+        while (it->Valid()) {
+            ++cnt;
+            it->Next();
+        }
+        *value = std::to_string(cnt);
+        return true;
+    } else if (property.ToString() == "silkstore.leaf_stats") {
+        auto it = leaf_index_->NewIterator(ReadOptions{});
+        DeferCode c([it](){delete it;});
+        int cnt = 0;
+        it->SeekToFirst();
+        while (it->Valid()) {
+            ++cnt;
+            auto key = it->key();
+            LeafIndexEntry index_entry(it->value());
+            value->append(key.ToString());
+            value->append("->");
+            value->append(index_entry.ToString());
+            value->append(" ");
+            it->Next();
+        }
+        return true;
+    }
+    return false;
+}
+
 Status SilkStore::Get(const ReadOptions &options,
                       const Slice &key,
                       std::string *value) {
@@ -645,9 +683,6 @@ SilkStore::SplitLeaf(SegmentBuilder *seg_builder, uint32_t seg_id, const LeafInd
     // TODO: implement leaf split
     Status s;
     /* We use DBIter to get the most recent non-deleted keys. */
-    if (seg_id == 18) {
-        fprintf(stderr, "1\n");
-    }
     auto it = dynamic_cast<silkstore::DBIter *>(leaf_store_->NewDBIterForLeaf(ReadOptions{}, leaf_index_entry, s,
                                                                               user_comparator(), seq_num));
     DeferCode c([it]() { delete it; });
@@ -656,11 +691,6 @@ SilkStore::SplitLeaf(SegmentBuilder *seg_builder, uint32_t seg_id, const LeafInd
     size_t bytes_total = 0;
     size_t key_count = 0;
     size_t first_key_bytes = 0;
-    std::string prevk;
-    //std::vector<std::string> keys;
-    if (seg_id == 16) {
-        fprintf(stderr, "-1\n");
-    }
     while (it->Valid()) {
         //keys.push_back(it->key().ToString());
         bytes_total += it->internal_key().size() + it->value().size();
@@ -668,27 +698,6 @@ SilkStore::SplitLeaf(SegmentBuilder *seg_builder, uint32_t seg_id, const LeafInd
         if (key_count == 1) {
             first_key_bytes = bytes_total;
         }
-        if (prevk.empty() == false) {
-            auto ukey = it->key().ToString();
-            if (prevk == ukey) {
-//                auto it2 = dynamic_cast<silkstore::DBIter *>(leaf_store_->NewDBIterForLeaf(ReadOptions{}, leaf_index_entry, s,
-//                                                                                          user_comparator(), seq_num));
-//                it2->SeekToFirst();
-//                while (it2->Valid()) {
-//                    auto internal_key = it2->internal_key();
-//                    auto value = it2->value();
-//                    fprintf(stderr, "key %s -> %s\n", it2->key().ToString().c_str(), value.ToString().c_str());
-//                    it2->Next();
-//                }
-//                for (int i = 0; i < keys.size(); ++i) {
-//                    fprintf(stderr, "key %s\n", keys[i].c_str());
-//                }
-                assert(prevk != ukey);
-            }
-            //assert(prevk.ToString() != ukey.ToString());
-            assert(prevk != ukey);
-        }
-        prevk = it->key().ToString();
 
         it->Next();
     }
@@ -703,7 +712,6 @@ SilkStore::SplitLeaf(SegmentBuilder *seg_builder, uint32_t seg_id, const LeafInd
     seg_builder->StartMiniRun();
     size_t bytes = 0;
 
-    prevk.clear();
     // first half
     while (it->Valid()) {
         bytes += it->internal_key().size() + it->value().size();
@@ -721,6 +729,7 @@ SilkStore::SplitLeaf(SegmentBuilder *seg_builder, uint32_t seg_id, const LeafInd
             MiniRunIndexEntry minirun_index_entry = MiniRunIndexEntry::Build(seg_id, run_no,
                                      seg_builder->GetFinishedRunIndexBlock(),
                                      seg_builder->GetFinishedRunFilterBlock(),
+                                     seg_builder->GetFinishedRunDataSize(),
                                      &buf);
             LeafIndexEntry new_leaf_index_entry;
             LeafIndexEntryBuilder::AppendMiniRunIndexEntry(LeafIndexEntry{}, minirun_index_entry, l1_index_entry_buf,
@@ -728,11 +737,6 @@ SilkStore::SplitLeaf(SegmentBuilder *seg_builder, uint32_t seg_id, const LeafInd
             it->Next();
             break;
         }
-        auto ukey = it->key().ToString();
-        if (!prevk.empty()) {
-            assert(prevk < ukey);
-        }
-        prevk = ukey;
         it->Next();
     }
 
@@ -743,11 +747,6 @@ SilkStore::SplitLeaf(SegmentBuilder *seg_builder, uint32_t seg_id, const LeafInd
         // Same reasoning as above
         seg_builder->Add(it->internal_key(), it->value());
         l2_max_key_buf->assign(it->key().data(), it->key().size());
-        auto ukey = it->key().ToString();
-        if (!prevk.empty()) {
-            assert(prevk < ukey);
-        }
-        prevk = ukey;
         it->Next();
     }
     {
@@ -757,6 +756,7 @@ SilkStore::SplitLeaf(SegmentBuilder *seg_builder, uint32_t seg_id, const LeafInd
         MiniRunIndexEntry minirun_index_entry = MiniRunIndexEntry::Build(seg_id, run_no,
                                  seg_builder->GetFinishedRunIndexBlock(),
                                  seg_builder->GetFinishedRunFilterBlock(),
+                                 seg_builder->GetFinishedRunDataSize(),
                                  &buf);
         LeafIndexEntry new_leaf_index_entry;
         LeafIndexEntryBuilder::AppendMiniRunIndexEntry(LeafIndexEntry{}, minirun_index_entry, l2_index_entry_buf,
@@ -789,9 +789,7 @@ SilkStore::CompactLeaf(SegmentBuilder *seg_builder, uint32_t seg_no, const LeafI
             current_user_key.clear();
             has_current_user_key = false;
         } else {
-            if (ikey.user_key.ToString() == "3926") {
-                fprintf(stderr, "1\n");
-            }
+
             auto itvalue = it->value();
             if (!has_current_user_key ||
                 user_comparator()->Compare(ikey.user_key,
@@ -830,6 +828,7 @@ SilkStore::CompactLeaf(SegmentBuilder *seg_builder, uint32_t seg_no, const LeafI
         MiniRunIndexEntry replacement = MiniRunIndexEntry::Build(seg_no, run_no,
                                                                  seg_builder->GetFinishedRunIndexBlock(),
                                                                  seg_builder->GetFinishedRunFilterBlock(),
+                                                                 seg_builder->GetFinishedRunDataSize(),
                                                                  &buf2);
         s = LeafIndexEntryBuilder::ReplaceMiniRunRange(leaf_index_entry, start_minirun_no, end_minirun_no, replacement,
                                                        buf, &new_leaf_index_entry);
@@ -839,15 +838,28 @@ SilkStore::CompactLeaf(SegmentBuilder *seg_builder, uint32_t seg_no, const LeafI
     return new_leaf_index_entry;
 }
 
-// Perform a merge between leaves and the immutable memtable.
-// Single threaded version.
-void SilkStore::BackgroundCompaction() {
+Status SilkStore::InvalidateLeafRuns(const LeafIndexEntry & leaf_index_entry, size_t start_minirun_no, size_t end_minirun_no) {
+    Status s = Status::OK();
+    leaf_index_entry.ForEachMiniRunIndexEntry([&](const MiniRunIndexEntry & index_entry, uint32_t no) -> bool {
+        if (start_minirun_no <= no && no <= end_minirun_no) {
+            s = segment_manager_->InvalidateSegmentRun(index_entry.GetSegmentNumber(), index_entry.GetRunNumberWithinSegment());
+            if (!s.ok()) {
+                return true;
+            }
+        }
+        return false;
+    }, LeafIndexEntry::TraversalOrder::forward);
+    return s;
+}
+
+Status SilkStore::DoCompactionWork() {
     SequenceNumber seq_num = max_sequence_;
+    mutex_.Unlock();
     ReadOptions ro;
     ro.snapshot = leaf_index_->GetSnapshot();
 
     // Release snapshot after the traversal is done
-    DeferCode c([&ro, this](){leaf_index_->ReleaseSnapshot(ro.snapshot);});
+    DeferCode c([&ro, this](){leaf_index_->ReleaseSnapshot(ro.snapshot); mutex_.Lock(); });
 
     std::unique_ptr<Iterator> iit(leaf_index_->NewIterator(ro));
 
@@ -860,13 +872,9 @@ void SilkStore::BackgroundCompaction() {
     uint32_t seg_id;
 
     Status s = segment_manager_->NewSegmentBuilder(&seg_id, seg_builder);
-    fprintf(stderr, "Background compaction starts, seg_id %d\n", seg_id);
+    //fprintf(stderr, "Background compaction starts, seg_id %d\n", seg_id);
     if (!s.ok()) {
-        bg_error_ = s;
-        return;
-    }
-    if (seg_id == 30) {
-        fprintf(stderr, "segment %d\n", seg_id);
+        return s;
     }
     Slice next_leaf_max_key;
     Slice next_leaf_index_value;
@@ -874,15 +882,13 @@ void SilkStore::BackgroundCompaction() {
     while (iit->Valid() && mit->Valid() && s.ok()) {
         if (seg_builder->FileSize() > options_.segment_file_size_thresh) {
             s = seg_builder->Finish();
-            fprintf(stderr, "Segment %d filled up, creating a new one\n", seg_id);
+            //fprintf(stderr, "Segment %d filled up, creating a new one\n", seg_id);
             if (!s.ok()) {
-                bg_error_ = s;
-                return;
+                return s;
             }
             s = segment_manager_->NewSegmentBuilder(&seg_id, seg_builder);
             if (!s.ok()) {
-                bg_error_ = s;
-                return;
+                return s;
             }
         }
         if (next_leaf_max_key.empty()) {
@@ -891,10 +897,6 @@ void SilkStore::BackgroundCompaction() {
         }
 
         Slice leaf_max_key = next_leaf_max_key;
-        if (leaf_max_key.ToString() == "2743") {
-            fprintf(stderr, "2743 in compaction\n");
-        }
-
         LeafIndexEntry leaf_index_entry(next_leaf_index_value);
         enum {
             leaf_compacted,
@@ -907,81 +909,75 @@ void SilkStore::BackgroundCompaction() {
             // TODO: perform leaf split compaction or in-leaf compaction
             // TODO: come up with better approaches of choosing leaf split or in-leaf compaction
             bool compact_all = false;
-            if (num_leaves >= allowed_num_leaves || rand() % 2 == 0) {
-                compaction_inside_leaf:
-                /* Number of leaves exceeds allowable quota, try compaction inside the leaf. */
-                std::pair <uint32_t, uint32_t> p = compact_all ? std::make_pair((uint32_t)0, (uint32_t)(leaf_index_entry.GetNumMiniRuns() - 1)) :ChooseLeafCompactionRunRange(leaf_index_entry);
-                uint32_t start_minirun_no = p.first;
-                uint32_t end_minirun_no = p.second;
-                fprintf(stderr, "Compacting leaf with max key %s, minirun range [%d, %d] segment %d\n", leaf_max_key.ToString().c_str(), start_minirun_no, end_minirun_no, seg_id);
-                LeafIndexEntry new_leaf_index_entry = CompactLeaf(seg_builder.get(), seg_id, leaf_index_entry, s, &buf3,
-                                                                  start_minirun_no, end_minirun_no);
-                if (!s.ok()) {
-                    bg_error_ = s;
-                    return;
-                }
-                new_leaf_index_entry.ForEachMiniRunIndexEntry([](const MiniRunIndexEntry &, uint32_t){return false;}, LeafIndexEntry::TraversalOrder::forward);
-                // Invalidate compacted runs
-                leaf_index_entry.ForEachMiniRunIndexEntry([&](const MiniRunIndexEntry & index_entry, uint32_t no) -> bool {
-                    if (start_minirun_no <= no && no <= end_minirun_no) {
-                        s = segment_manager_->InvalidateSegmentRun(index_entry.GetSegmentNumber(), index_entry.GetRunNumberWithinSegment());
-                        if (!s.ok()) {
-                            bg_error_ = s;
-                            return true;
-                        }
-                    }
-                    return false;
-                }, LeafIndexEntry::TraversalOrder::forward);
-
-                leaf_index_entry = new_leaf_index_entry;
-                leaf_state = leaf_compacted;
-            } else {
-                fprintf(stderr, "Splitting leaf with max key %s at sequence num %lu segment %d ", leaf_max_key.ToString().c_str(), seq_num, seg_id);
-                if (leaf_max_key.ToString() == "9816") {
-                    fprintf(stderr, "1\n");
-                }
+            if (num_leaves < allowed_num_leaves) {
+                //fprintf(stderr, "Splitting leaf with max key %s at sequence num %lu segment %d ", leaf_max_key.ToString().c_str(), seq_num, seg_id);
                 s = SplitLeaf(seg_builder.get(), seg_id, leaf_index_entry, seq_num, &buf3, &buf4, &buf5, &buf6);
                 if (!s.ok()) {
                     if (s.IsSplitUnderflow()) {
                         compact_all = true;
-                        fprintf(stderr, " underflowed\n");
+                        //fprintf(stderr, " underflowed\n");
                         goto compaction_inside_leaf;
                     } else {
-                        bg_error_ = s;
-                        return;
+                        return s;
                     }
                 } else {
-                    fprintf(stderr, "into two leaves (%s, %s) with index content(%s, %s)\n", buf3.c_str(), buf4.c_str(), LeafIndexEntry(buf5).ToString().c_str(), LeafIndexEntry(buf6).ToString().c_str());
+                    //fprintf(stderr, "into two leaves (%s, %s) with index content(%s, %s)\n", buf3.c_str(), buf4.c_str(), LeafIndexEntry(buf5).ToString().c_str(), LeafIndexEntry(buf6).ToString().c_str());
                 }
+
+                // Invalidate the miniruns pointed by the old leaf index entry
+                s = InvalidateLeafRuns(leaf_index_entry, 0, leaf_index_entry.GetNumMiniRuns() - 1);
+                if (!s.ok()) {
+                    return s;
+                }
+
+                ++num_leaves;
                 leaf_max_key = buf3;
                 leaf_index_entry = LeafIndexEntry(buf5); // point to the first leaf after split
                 leaf_state = leaf_splitted;
-                leaf_index_entry.ForEachMiniRunIndexEntry([](const MiniRunIndexEntry &, uint32_t){return false;}, LeafIndexEntry::TraversalOrder::forward);
+                //leaf_index_entry.ForEachMiniRunIndexEntry([](const MiniRunIndexEntry &, uint32_t){return false;}, LeafIndexEntry::TraversalOrder::forward);
 
                 //Update the index entry for the second half leaf
                 // Second half
                 s = leaf_index_->Put(WriteOptions{}, Slice(buf4), Slice(buf6));
                 if (!s.ok()) {
-                    bg_error_ = s;
-                    return;
+                    return s;
                 }
+            } else {
+                compaction_inside_leaf:
+                /* Number of leaves exceeds allowable quota, try compaction inside the leaf. */
+                std::pair <uint32_t, uint32_t> p = compact_all ? std::make_pair((uint32_t)0, (uint32_t)(leaf_index_entry.GetNumMiniRuns() - 1)) :ChooseLeafCompactionRunRange(leaf_index_entry);
+                uint32_t start_minirun_no = p.first;
+                uint32_t end_minirun_no = p.second;
+                //fprintf(stderr, "Compacting leaf with max key %s, minirun range [%d, %d] segment %d\n", leaf_max_key.ToString().c_str(), start_minirun_no, end_minirun_no, seg_id);
+                LeafIndexEntry new_leaf_index_entry = CompactLeaf(seg_builder.get(), seg_id, leaf_index_entry, s, &buf3,
+                                                                  start_minirun_no, end_minirun_no);
+                if (!s.ok()) {
+                    return s;
+                }
+                //new_leaf_index_entry.ForEachMiniRunIndexEntry([](const MiniRunIndexEntry &, uint32_t){return false;}, LeafIndexEntry::TraversalOrder::forward);
+                // Invalidate compacted runs
+                s = InvalidateLeafRuns(leaf_index_entry, start_minirun_no, end_minirun_no);
+                if (!s.ok()) {
+                    return s;
+                }
+                leaf_index_entry = new_leaf_index_entry;
+                leaf_state = leaf_compacted;
             }
         } else {
-            fprintf(stderr, "# runs within threshold for leaf with max key %s\n", leaf_max_key.ToString().c_str());
+            //fprintf(stderr, "# runs within threshold for leaf with max key %s\n", leaf_max_key.ToString().c_str());
         }
 
         assert(seg_builder->RunStarted() == false);
-        Slice prev_added_user_key;
-        if (leaf_max_key.ToString() == "9814") {
-            fprintf(stderr, "1\n");
-        }
+
+        int cnt = 0;
         // Build up a minirun of key value payloads
         while (mit->Valid()) {
+
             Slice imm_internal_key = mit->key();
             ParsedInternalKey parsed_internal_key;
             if (!ParseInternalKey(imm_internal_key, &parsed_internal_key)) {
-                bg_error_ = Status::InvalidArgument("error parsing key from immutable table during compaction");
-                return;
+                s = Status::InvalidArgument("error parsing key from immutable table during compaction");
+                return s;
             }
             if (this->user_comparator()->Compare(parsed_internal_key.user_key, leaf_max_key) > 0) {
                 break;
@@ -989,26 +985,19 @@ void SilkStore::BackgroundCompaction() {
             if (seg_builder->RunStarted() == false) {
                 s = seg_builder->StartMiniRun();
                 if (!s.ok()) {
-                    bg_error_ = s;
-                    return;
+                    return s;
                 }
                 assert(seg_builder->RunStarted());
             }
-            if (leaf_max_key.ToString() == "2743") {
-                fprintf(stderr, "adding key %s\n", parsed_internal_key.user_key.ToString().c_str());
-            }
-            //if (prev_added_user_key.empty() ||this->user_comparator()->Compare(parsed_internal_key.user_key, prev_added_user_key) !=0) {
-                seg_builder->Add(imm_internal_key, mit->value());
-            //}
-            //prev_added_user_key = parsed_internal_key.user_key;
+            seg_builder->Add(mit->key(), mit->value());
             mit->Next();
+            ++cnt;
         }
 
         if (seg_builder->RunStarted()) {
             s = seg_builder->FinishMiniRun(&run_no);
             if (!s.ok()) {
-                bg_error_ = s;
-                return;
+                return s;
             }
 
             // Generate an index entry for the new minirun
@@ -1016,29 +1005,20 @@ void SilkStore::BackgroundCompaction() {
             MiniRunIndexEntry new_minirun_index_entry = MiniRunIndexEntry::Build(seg_id, run_no,
                                                                                  seg_builder->GetFinishedRunIndexBlock(),
                                                                                  seg_builder->GetFinishedRunFilterBlock(),
+                                                                                 seg_builder->GetFinishedRunDataSize(),
                                                                                  &buf);
 
             // Update the leaf index entry
             LeafIndexEntry new_leaf_index_entry;
-            leaf_index_entry.ForEachMiniRunIndexEntry([](const MiniRunIndexEntry &, uint32_t){return false;}, LeafIndexEntry::TraversalOrder::forward);
+            //leaf_index_entry.ForEachMiniRunIndexEntry([](const MiniRunIndexEntry &, uint32_t){return false;}, LeafIndexEntry::TraversalOrder::forward);
             LeafIndexEntryBuilder::AppendMiniRunIndexEntry(leaf_index_entry, new_minirun_index_entry, &buf2,
                                                            &new_leaf_index_entry);
-            new_leaf_index_entry.ForEachMiniRunIndexEntry([](const MiniRunIndexEntry &, uint32_t){return false;}, LeafIndexEntry::TraversalOrder::forward);
+            //new_leaf_index_entry.ForEachMiniRunIndexEntry([](const MiniRunIndexEntry &, uint32_t){return false;}, LeafIndexEntry::TraversalOrder::forward);
             assert(leaf_index_entry.GetNumMiniRuns() + 1 == new_leaf_index_entry.GetNumMiniRuns());
             // Write out the updated entry to leaf index
             s = leaf_index_->Put(WriteOptions{}, leaf_max_key, new_leaf_index_entry.GetRawData());
-            //if (leaf_max_key.ToString() == "9814") {
-                //SequenceNumber snapshot = max_sequence_;
-                //std::string ans;
-                //Status res = leaf_store_->Get(ReadOptions{}, LookupKey("9812", snapshot), &ans);
-                //fprintf(stderr, "Old index entry %s, new index entry %s for max key %s\n", leaf_index_entry.ToString().c_str(), new_leaf_index_entry.ToString().c_str(),leaf_max_key.ToString().c_str());
-            //}
-            if (leaf_max_key.ToString() == "9814") {
-                fprintf(stderr, "1\n");
-            }
             if (!s.ok()) {
-                bg_error_ = s;
-                return;
+                return s;
             }
         } else {
             // Memtable has no keys intersected with this leaf
@@ -1046,14 +1026,13 @@ void SilkStore::BackgroundCompaction() {
                 // If the leaf became empty due to self-compaction or split, remove it from the leaf index
                 leaf_index_->Delete(WriteOptions{}, leaf_max_key);
                 --num_leaves;
-                fprintf(stderr, "Deleted index entry for empty leaf of key %s\n", leaf_max_key.ToString().c_str());
+                //fprintf(stderr, "Deleted index entry for empty leaf of key %s\n", leaf_max_key.ToString().c_str());
             } else if (leaf_state == leaf_splitted) {
                 // Leaf split into two leaves and
                 // In this case, we update the leaf index entries only
                 s = leaf_index_->Put(WriteOptions{}, leaf_max_key, leaf_index_entry.GetRawData());
                 if (!s.ok()) {
-                    bg_error_ = s;
-                    return;
+                    return s;
                 }
             }
         }
@@ -1063,12 +1042,12 @@ void SilkStore::BackgroundCompaction() {
             if (iit->Valid()) {
                 next_leaf_max_key = iit->key();
                 next_leaf_index_value = iit->value();
-                LeafIndexEntry(next_leaf_index_value).ForEachMiniRunIndexEntry([](const MiniRunIndexEntry &, uint32_t){return false;}, LeafIndexEntry::TraversalOrder::forward);
+                //LeafIndexEntry(next_leaf_index_value).ForEachMiniRunIndexEntry([](const MiniRunIndexEntry &, uint32_t){return false;}, LeafIndexEntry::TraversalOrder::forward);
             }
         } else { // leaf_splitted
             next_leaf_max_key = buf4;
             next_leaf_index_value = buf6;
-            LeafIndexEntry(next_leaf_index_value).ForEachMiniRunIndexEntry([](const MiniRunIndexEntry &, uint32_t){return false;}, LeafIndexEntry::TraversalOrder::forward);
+            //LeafIndexEntry(next_leaf_index_value).ForEachMiniRunIndexEntry([](const MiniRunIndexEntry &, uint32_t){return false;}, LeafIndexEntry::TraversalOrder::forward);
         }
     }
 
@@ -1077,15 +1056,16 @@ void SilkStore::BackgroundCompaction() {
         // TODO: In this case, create new leaves whose runs store no more than 1MB of data each.
         s = seg_builder->StartMiniRun();
         if (!s.ok()) {
-            bg_error_ = s;
-            return;
+            fprintf(stderr, s.ToString().c_str());
+            return s;
         }
         while (mit->Valid()) {
             Slice imm_internal_key = mit->key();
             ParsedInternalKey parsed_internal_key;
             if (!ParseInternalKey(mit->key(), &parsed_internal_key)) {
-                bg_error_ = Status::InvalidArgument("error parsing key from immutable table during compaction");
-                return;
+                s = Status::InvalidArgument("error parsing key from immutable table during compaction");
+                fprintf(stderr, s.ToString().c_str());
+                return s;
             }
             leaf_max_key = parsed_internal_key.user_key;
             seg_builder->Add(imm_internal_key, mit->value());
@@ -1093,26 +1073,34 @@ void SilkStore::BackgroundCompaction() {
         }
         uint32_t run_no;
         seg_builder->FinishMiniRun(&run_no);
-
+        assert(seg_builder->GetFinishedRunDataSize());
         // Generate an index entry for the new minirun
         buf.clear();
         MiniRunIndexEntry minirun_index_entry = MiniRunIndexEntry::Build(seg_id, run_no,
                                                                          seg_builder->GetFinishedRunIndexBlock(),
                                                                          seg_builder->GetFinishedRunFilterBlock(),
+                                                                         seg_builder->GetFinishedRunDataSize(),
                                                                          &buf);
         LeafIndexEntry new_leaf_index_entry;
         LeafIndexEntryBuilder::AppendMiniRunIndexEntry(LeafIndexEntry{}, minirun_index_entry, &buf2,
                                                        &new_leaf_index_entry);
-        new_leaf_index_entry.ForEachMiniRunIndexEntry([](const MiniRunIndexEntry &, uint32_t){return false;}, LeafIndexEntry::TraversalOrder::forward);
+        //new_leaf_index_entry.ForEachMiniRunIndexEntry([](const MiniRunIndexEntry &, uint32_t){return false;}, LeafIndexEntry::TraversalOrder::forward);
         s = leaf_index_->Put(WriteOptions{}, leaf_max_key, new_leaf_index_entry.GetRawData());
         if (!s.ok()) {
-            bg_error_ = s;
-            return;
+            fprintf(stderr, s.ToString().c_str());
+            return s;
         }
         ++num_leaves;
     }
-    fprintf(stderr, "Background compaction finished, last segment %d\n", seg_id);
+    //fprintf(stderr, "Background compaction finished, last segment %d\n", seg_id);
     s = seg_builder->Finish();
+    return s;
+}
+
+// Perform a merge between leaves and the immutable memtable.
+// Single threaded version.
+void SilkStore::BackgroundCompaction() {
+    Status s = DoCompactionWork();
     if (!s.ok()) {
         bg_error_ = s;
     } else {
@@ -1123,7 +1111,6 @@ void SilkStore::BackgroundCompaction() {
         imm_->Unref();
         imm_ = nullptr;
         has_imm_.Release_Store(nullptr);
-
     }
 }
 

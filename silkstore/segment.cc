@@ -153,6 +153,27 @@ Status SegmentManager::InvalidateSegmentRun(uint32_t seg_id, uint32_t run_no) {
     s = seg->InvalidateMiniRun(run_no);
     return s;
 }
+
+
+size_t SegmentManager::ApproximateSize() {
+    Rep* r = rep_;
+    std::lock_guard<std::mutex> g(r->mutex);
+    size_t size = 0;
+    Env* default_env = Env::Default();
+    for (auto kv : r->segment_filepaths) {
+        auto filepath = kv.second;
+        uint64_t filesize;
+        Status s = default_env->GetFileSize(filepath, &filesize);
+        if (s.ok()) {
+            size += filesize;
+        } else {
+            Log(r->options.info_log, "Failed getting size of file %s\n", filepath.c_str());
+        }
+    }
+    Log(r->options.info_log, "Approximate size of all segment files %lu\n", size);
+    return size;
+}
+
 Status SegmentManager::OpenSegment(uint32_t seg_id, Segment **seg_ptr) {
     Rep* r = rep_;
     r->mutex.lock();
@@ -170,6 +191,7 @@ Status SegmentManager::OpenSegment(uint32_t seg_id, Segment **seg_ptr) {
         RandomAccessFile*rfile;
         Status s = default_env->NewRandomAccessFile(filepath, &rfile);
         if (!s.ok()) {
+            std::string str = s.ToString();
             return s;
         }
 

@@ -79,6 +79,12 @@ Slice SegmentBuilder::GetFinishedRunIndexBlock() {
     return r->run_builder->IndexBlock();
 }
 
+uint32_t SegmentBuilder::GetFinishedRunDataSize() {
+    Rep *r = rep_;
+    assert(r->run_started == false);
+    return r->run_builder->GetCurrentRunDataSize();
+}
+
 Slice SegmentBuilder::GetFinishedRunFilterBlock() {
     Rep *r = rep_;
     assert(r->run_started == false);
@@ -126,7 +132,7 @@ Status SegmentBuilder::Finish() {
     buf.clear();
     PutFixed64(&buf, buf_size);
     r->status = r->file->Append(buf);
-
+    r->file->Flush();
     return Env::Default()->RenameFile(r->src_segment_filepath, r->target_segment_filepath);
 }
 

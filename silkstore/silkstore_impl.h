@@ -50,7 +50,7 @@ class SilkStore : public DB {
 
     virtual void ReleaseSnapshot(const Snapshot *snapshot);
 
-    virtual bool GetProperty(const Slice &property, std::string *value) { return false; }
+    virtual bool GetProperty(const Slice &property, std::string *value);
 
     virtual void GetApproximateSizes(const Range *range, int n, uint64_t *sizes) {}
 
@@ -193,11 +193,12 @@ class SilkStore : public DB {
 
     void MaybeScheduleCompaction();
 
-    void CompactionWork();
+    Status DoCompactionWork();
 
     static void BGWork(void* db);
     void BackgroundCall();
 
+    Status InvalidateLeafRuns(const LeafIndexEntry & leaf_index_entry, size_t start_run, size_t end_run);
     LeafIndexEntry
     CompactLeaf(SegmentBuilder *seg_builder, uint32_t seg_no, const LeafIndexEntry &leaf_index_entry, Status &s,std::string *buf, uint32_t start_minirun_no, uint32_t end_minirun_no);
 

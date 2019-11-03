@@ -28,6 +28,7 @@ struct MiniRunBuilder::Rep {
     silkstore::SegmentBuilder *seg_builder;
     uint64_t start_offset; // records the start of a minirun and reduces the size of a BlockHandle after varint encoding.
     uint64_t offset;
+    uint32_t run_datasize;
     Status status;
     BlockBuilder data_block;
     BlockBuilder index_block;
@@ -58,6 +59,7 @@ struct MiniRunBuilder::Rep {
           file(f),
           start_offset(offset),
           offset(offset),
+          run_datasize(0),
           data_block(&options),
           index_block(&index_block_options),
           num_entries(0),
@@ -119,8 +121,11 @@ void MiniRunBuilder::Flush() {
     if (r->data_block.empty()) return;
     assert(!r->pending_index_entry);
     WriteBlock(&r->data_block, &r->pending_handle);
+    // Store the current size of the run
+    r->run_datasize = r->pending_handle.offset() - r->start_offset;
     // We store offset to the start of the run in pending_handle to enable high compression rate.
     r->pending_handle.set_offset(r->pending_handle.offset() - r->start_offset);
+
     if (ok()) {
         r->pending_index_entry = true;
         r->status = r->file->Flush();
@@ -269,6 +274,7 @@ void MiniRunBuilder::Reset(uint64_t file_offset) {
     r->start_offset = file_offset;
     r->offset = file_offset;
     r->num_entries = 0;
+    r->run_datasize = 0;
     r->finished_index_block = Slice();
     r->finished_filter_block = Slice();
     r->status = Status::OK();
@@ -289,6 +295,10 @@ uint64_t MiniRunBuilder::NumEntries() const {
 
 uint64_t MiniRunBuilder::FileSize() const {
     return rep_->offset;
+}
+
+uint32_t  MiniRunBuilder::GetCurrentRunDataSize() const {
+    return rep_->run_datasize;
 }
 
 }  // namespace silkstore

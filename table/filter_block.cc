@@ -46,14 +46,14 @@ Slice FilterBlockBuilder::FinishWithoutOffsets() {
       GenerateFilter();
     }
 
-    //    // Append array of per-filter offsets
-    //    const uint32_t array_offset = result_.size();
-    //    for (size_t i = 0; i < filter_offsets_.size(); i++) {
-    //      PutFixed32(&result_, filter_offsets_[i]);
-    //    }
-    //
-    //    PutFixed32(&result_, array_offset);
-    //    result_.push_back(kFilterBaseLg);  // Save encoding parameter in result
+    // Append array of per-filter offsets
+    const uint32_t array_offset = result_.size();
+    for (size_t i = 0; i < filter_offsets_.size(); i++) {
+      PutFixed32(&result_, filter_offsets_[i]);
+    }
+
+    PutFixed32(&result_, array_offset);
+    result_.push_back(kFilterBaseLg);  // Save encoding parameter in result
     return Slice(result_);
 }
 

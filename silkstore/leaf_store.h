@@ -39,7 +39,8 @@ class MiniRunIndexEntry {
 
     Slice GetRawData() const { return raw_data_; }
 
-    static MiniRunIndexEntry Build(uint32_t seg_no, uint32_t run_no, Slice block_index_data, Slice filter_data, std::string * buf);
+    size_t GetRunDataSize() const { return run_datasize_; }
+    static MiniRunIndexEntry Build(uint32_t seg_no, uint32_t run_no, Slice block_index_data, Slice filter_data, size_t run_datasize, std::string * buf);
 
  private:
     Slice raw_data_;
@@ -47,6 +48,7 @@ class MiniRunIndexEntry {
     uint32_t run_no_within_segment_;
     uint32_t block_index_data_len_;
     uint32_t filter_data_len_;
+    uint32_t run_datasize_;
 };
 
 class LeafIndexEntry {

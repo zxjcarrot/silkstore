@@ -70,6 +70,7 @@ class SegmentBuilder {
 
     bool RunStarted() const;
 
+    uint32_t GetFinishedRunDataSize();
  private:
     bool ok() const { return status().ok(); }
 
@@ -141,7 +142,7 @@ class SegmentManager {
 
     Status NewSegmentBuilder(uint32_t *seg_id, std::unique_ptr<SegmentBuilder> &seg_builder_ptr);
 
-    size_t ApproximateSize() { return 0; }
+    size_t ApproximateSize();
 
     Status InvalidateSegmentRun(uint32_t seg_id, uint32_t run_no);
  private:
