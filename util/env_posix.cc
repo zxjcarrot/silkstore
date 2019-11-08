@@ -504,7 +504,7 @@ class PosixEnv : public Env {
   Status NewRandomAccessFile(const std::string& filename,
                              RandomAccessFile** result) override {
     *result = nullptr;
-    int fd = ::open(filename.c_str(), O_RDONLY);
+    int fd = ::open(filename.c_str(), O_RDONLY | O_DIRECT);
     if (fd < 0) {
       return PosixError(filename, errno);
     }
@@ -653,6 +653,8 @@ class PosixEnv : public Env {
   void Schedule(void (*background_work_function)(void* background_work_arg),
                 void* background_work_arg) override;
 
+  void ScheduleDelayedTask(std::function<void()> f, int delay_in_micros) override;
+
   void StartThread(void (*thread_main)(void* thread_main_arg),
                    void* thread_main_arg) override;
 
@@ -697,12 +699,17 @@ class PosixEnv : public Env {
 
  private:
   void BackgroundThreadMain();
+  void BackgroundDelayWorkThreadMain();
 
   static void BackgroundThreadEntryPoint(PosixEnv* env) {
     env->BackgroundThreadMain();
   }
 
-  // Stores the work item data in a Schedule() call.
+  static void BackgroundDelayWorkThreadEntryPoint(PosixEnv* env) {
+    env->BackgroundDelayWorkThreadMain();
+  }
+
+    // Stores the work item data in a Schedule() call.
   //
   // Instances are constructed on the thread calling Schedule() and used on the
   // background thread.
@@ -720,8 +727,12 @@ class PosixEnv : public Env {
   port::Mutex background_work_mutex_;
   port::CondVar background_work_cv_ GUARDED_BY(background_work_mutex_);
   bool started_background_thread_ GUARDED_BY(background_work_mutex_);
+  bool started_background_delay_work_thread_ GUARDED_BY(background_work_mutex_);
 
   std::queue<BackgroundWorkItem> background_work_queue_
+      GUARDED_BY(background_work_mutex_);
+
+  std::queue<std::pair<std::function<void()>,int>> delayed_work_queue_
       GUARDED_BY(background_work_mutex_);
 
   PosixLockTable locks_;  // Thread-safe.
@@ -757,6 +768,7 @@ int MaxOpenFiles() {
 PosixEnv::PosixEnv()
     : background_work_cv_(&background_work_mutex_),
       started_background_thread_(false),
+      started_background_delay_work_thread_(false),
       mmap_limiter_(MaxMmaps()),
       fd_limiter_(MaxOpenFiles()) {
 }
@@ -782,6 +794,25 @@ void PosixEnv::Schedule(
   background_work_mutex_.Unlock();
 }
 
+void PosixEnv::ScheduleDelayedTask(std::function<void()> f, int delay_in_micros) {
+  background_work_mutex_.Lock();
+
+  // Start the background thread, if we haven't done so already.
+  if (!started_background_delay_work_thread_) {
+    started_background_delay_work_thread_ = true;
+    std::thread background_delay_work_thread(PosixEnv::BackgroundDelayWorkThreadEntryPoint, this);
+    background_delay_work_thread.detach();
+  }
+
+  // If the queue is empty, the background thread may be waiting for work.
+  if (delayed_work_queue_.empty()) {
+    background_work_cv_.Signal();
+  }
+
+  delayed_work_queue_.emplace(std::make_pair(f, delay_in_micros));
+  background_work_mutex_.Unlock();
+}
+
 void PosixEnv::BackgroundThreadMain() {
   while (true) {
     background_work_mutex_.Lock();
@@ -799,6 +830,28 @@ void PosixEnv::BackgroundThreadMain() {
 
     background_work_mutex_.Unlock();
     background_work_function(background_work_arg);
+  }
+}
+
+
+void PosixEnv::BackgroundDelayWorkThreadMain() {
+  while (true) {
+    background_work_mutex_.Lock();
+
+    // Wait until there is work to be done.
+    while (delayed_work_queue_.empty()) {
+      background_work_cv_.Wait();
+    }
+
+    assert(!delayed_work_queue_.empty());
+    auto background_work_function =
+            delayed_work_queue_.front().first;
+    auto delay_in_micros = delayed_work_queue_.front().second;
+    delayed_work_queue_.pop();
+
+    background_work_mutex_.Unlock();
+    SleepForMicroseconds(delay_in_micros);
+    background_work_function();
   }
 }
 

@@ -138,6 +138,7 @@ class SilkStore : public DB {
     // Has a background compaction been scheduled or is running?
     bool background_compaction_scheduled_ GUARDED_BY(mutex_);
 
+    std::function<void()> leaf_optimization_func_;
     // Information for a manual compaction
     struct ManualCompaction {
         int level;
@@ -167,7 +168,6 @@ class SilkStore : public DB {
         }
     };
 
-    CompactionStats stats_[config::kNumLevels] GUARDED_BY(mutex_);
 
     // No copying allowed
     SilkStore(const SilkStore &);
@@ -195,6 +195,8 @@ class SilkStore : public DB {
 
     Status DoCompactionWork();
 
+    Status OptimizeLeaf();
+
     static void BGWork(void* db);
     void BackgroundCall();
 
@@ -210,6 +212,7 @@ class SilkStore : public DB {
               std::string *l2_index_entry_buf);
     // silkstore stuff
     LeafStore * leaf_store_ = nullptr;
+    LeafStatStore stat_store_;
 };
 
 Status DestroyDB(const std::string& dbname, const Options& options);

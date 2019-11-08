@@ -9,7 +9,8 @@
 #ifndef MEM_CAPACITY
 #define MEM_CAPACITY (128* (1UL<<32))
 #endif
-const size_t kSegmentFileSizeThreshold = 64*1024*1024;
+const size_t kSegmentFileSizeThreshold = 64 * 1024 * 1024;
+const size_t kLeafDataSizeThreshold = 2 * 1024 * 1024;
 const size_t kStorageBlocKSize = 4096;
 namespace leveldb {
 
@@ -21,9 +22,10 @@ Options::Options()
       env(Env::Default()),
       info_log(nullptr),
       write_buffer_size(4<<20),
-      max_memtbl_capacity(MEM_CAPACITY >> 1),
+      max_memtbl_capacity(MEM_CAPACITY),
       segment_file_size_thresh(kSegmentFileSizeThreshold),
-      leaf_max_num_miniruns(15),
+      leaf_datasize_thresh(kLeafDataSizeThreshold),
+      leaf_max_num_miniruns(44),
       storage_block_size(kStorageBlocKSize),
       memtbl_to_L0_ratio(30),
       max_open_files(1000),
@@ -33,7 +35,8 @@ Options::Options()
       max_file_size(2<<20),
       compression(kSnappyCompression),
       reuse_logs(false),
-      filter_policy(nullptr)
+      filter_policy(nullptr),
+      enable_leaf_read_opt(false)
       {}
 
 }  // namespace leveldb

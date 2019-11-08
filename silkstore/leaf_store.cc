@@ -197,6 +197,16 @@ uint32_t LeafIndexEntry::GetNumMiniRuns() const {
     return DecodeFixed32(p);
 }
 
+size_t LeafIndexEntry::GetLeafDataSize() const {
+    size_t s = 0;
+    auto processor = [&s](const MiniRunIndexEntry &entry, uint32_t) {
+        s += entry.GetRunDataSize();
+        return false;
+    };
+    ForEachMiniRunIndexEntry(processor, TraversalOrder::backward);
+    return s;
+}
+
 std::vector<MiniRunIndexEntry> LeafIndexEntry::GetAllMiniRunIndexEntry(
         TraversalOrder order) const {
     std::vector<MiniRunIndexEntry> res;
@@ -352,7 +362,7 @@ Iterator* LeafStore::NewIterator(const ReadOptions &options) {
     return new LeafStoreIterator(options, this);
 }
 
-Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::string *value) {
+Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::string *value, LeafStatStore & stat_store) {
     Iterator *it = leaf_index_->NewIterator(options);
     DeferCode c([it](){delete it;});
     it->Seek(key.user_key());
@@ -365,7 +375,8 @@ Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::str
     ParsedInternalKey parsed_lookup_key;
     ParseInternalKey(key.internal_key(), &parsed_lookup_key);
     auto processor = [&, this](const MiniRunIndexEntry &minirun_index_entry, uint32_t) -> bool {
-        if (options_.filter_policy) {
+        ++runs_searched;
+        if (false && options_.filter_policy) {
             FilterBlockReader filter(options_.filter_policy, minirun_index_entry.GetFilterData());
             if (filter.KeyMayMatch(0, key.internal_key()) == false) {
                 return false;
@@ -387,7 +398,7 @@ Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::str
         Iterator *iter = run->NewIterator(options);
         DeferCode c([iter, run](){delete run; delete iter;});
         iter->Seek(key.internal_key());
-        ++runs_searched;
+
         if (iter->Valid()) {
             ParsedInternalKey parsed_key;
             if (!ParseInternalKey(iter->key(), &parsed_key)) {
@@ -418,6 +429,7 @@ Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::str
     };
 
     index_entry.ForEachMiniRunIndexEntry(processor, LeafIndexEntry::TraversalOrder::backward);
+    stat_store.IncrementLeafReads(it->key().ToString());
     return !s.ok() ? s : key_status;
 }
 

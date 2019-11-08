@@ -122,7 +122,7 @@ void MiniRunBuilder::Flush() {
     assert(!r->pending_index_entry);
     WriteBlock(&r->data_block, &r->pending_handle);
     // Store the current size of the run
-    r->run_datasize = r->pending_handle.offset() - r->start_offset;
+    r->run_datasize += r->pending_handle.size();
     // We store offset to the start of the run in pending_handle to enable high compression rate.
     r->pending_handle.set_offset(r->pending_handle.offset() - r->start_offset);
 

@@ -166,6 +166,7 @@ target_sources(leveldb
     "${PROJECT_SOURCE_DIR}/silkstore/silkstore_impl.cc"
     "${PROJECT_SOURCE_DIR}/silkstore/leaf_store.cc"
     "${PROJECT_SOURCE_DIR}/silkstore/silkstore_iter.cc"
+    "${PROJECT_SOURCE_DIR}/silkstore/util.cpp"
 
   # Only CMake 3.3+ supports PUBLIC sources in targets exported by "install".
   $<$<VERSION_GREATER:CMAKE_VERSION,3.2>:PUBLIC>
@@ -297,6 +298,7 @@ if(LEVELDB_BUILD_TESTS)
   leveldb_test("${PROJECT_SOURCE_DIR}/silkstore/silkstore_test.cc")
 
   leveldb_test("${PROJECT_SOURCE_DIR}/silkstore/minirun_test.cc")
+  leveldb_test("${PROJECT_SOURCE_DIR}/silkstore/util_test.cc")
 
   if(NOT BUILD_SHARED_LIBS)
     leveldb_test("${PROJECT_SOURCE_DIR}/db/autocompact_test.cc")

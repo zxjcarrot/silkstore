@@ -123,6 +123,8 @@ static const char* FLAGS_mixed_wl_spec = nullptr;
 
 static int FLAGS_num_ops_in_mixed_wl = 0;
 
+static bool FLAGS_enable_leaf_read_opt = false;
+
 namespace leveldb {
 
 namespace {
@@ -934,6 +936,7 @@ class Benchmark {
       options.filter_policy = filter_policy_;
       options.reuse_logs = FLAGS_reuse_logs;
       options.compression = kNoCompression;
+      options.enable_leaf_read_opt = FLAGS_enable_leaf_read_opt;
       Status s;
       if (FLAGS_db_type == std::string("silkstore")) {
         DB::OpenSilkStore(options, FLAGS_db, &db_);
@@ -1259,7 +1262,9 @@ int main(int argc, char** argv) {
       FLAGS_mixed_wl_spec = argv[i] + 16;
     } else if (strncmp(argv[i], "--num_ops_in_mixed_wl=", 22) == 0) {
       FLAGS_num_ops_in_mixed_wl = std::stoi(argv[i] + 22);
-    } else {
+    } else if (strncmp(argv[i], "--enable_leaf_read_opt=", 23) == 0) {
+      FLAGS_enable_leaf_read_opt = std::stoi(argv[i] + 23);
+    }else {
       fprintf(stderr, "Invalid flag '%s'\n", argv[i]);
       exit(1);
     }

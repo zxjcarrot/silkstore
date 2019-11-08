@@ -17,6 +17,8 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <functional>
+
 #include "leveldb/export.h"
 #include "leveldb/status.h"
 
@@ -150,6 +152,8 @@ class LEVELDB_EXPORT Env {
   virtual void Schedule(
       void (*function)(void* arg),
       void* arg) = 0;
+
+  virtual void ScheduleDelayedTask(std::function<void()> f, int delay_in_micros)=0;
 
   // Start a new thread, invoking "function(arg)" within the new thread.
   // When "function(arg)" returns, the thread will be destroyed.
@@ -335,9 +339,15 @@ class LEVELDB_EXPORT EnvWrapper : public Env {
     return target_->LockFile(f, l);
   }
   Status UnlockFile(FileLock* l) override { return target_->UnlockFile(l); }
+
   void Schedule(void (*f)(void*), void* a) override {
     return target_->Schedule(f, a);
   }
+
+  void ScheduleDelayedTask(std::function<void()> f, int delay_in_micros) {
+    return target_->ScheduleDelayedTask(f, delay_in_micros);
+  }
+
   void StartThread(void (*f)(void*), void* a) override {
     return target_->StartThread(f, a);
   }
@@ -353,6 +363,7 @@ class LEVELDB_EXPORT EnvWrapper : public Env {
   void SleepForMicroseconds(int micros) override {
     target_->SleepForMicroseconds(micros);
   }
+
 
  private:
   Env* target_;

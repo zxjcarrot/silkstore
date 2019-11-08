@@ -8,6 +8,8 @@
 #include <climits>
 #include <cstdint>
 #include <functional>
+#include <unordered_map>
+#include <vector>
 
 #include "db/dbformat.h"
 #include "leveldb/db.h"
@@ -17,7 +19,8 @@
 #include "leveldb/slice.h"
 #include "table/block.h"
 #include "db/db_iter.h"
-
+#include "util/mutexlock.h"
+#include "leveldb/env.h"
 
 namespace leveldb {
 namespace silkstore {
@@ -75,7 +78,9 @@ class LeafIndexEntry {
     Slice GetRawData() const { return raw_data_; }
 
     std::string ToString();
- private:
+
+    size_t GetLeafDataSize() const;
+private:
     Slice raw_data_;
 };
 
@@ -106,6 +111,130 @@ class LeafIndexEntryBuilder {
                                       LeafIndexEntry *new_entry);
 };
 
+/*
+ *
+ * Stores the statistics of every leaf in memory:
+ *  1. Write Hotness: measurement of update frequency of a leaf
+ *  2. Group Id: which group this leaf belongs to. This is updated after
+ *      each run of clustering algorithm on the leaves based on Write Hotness measure.
+ *      Possible groups: Hot, Warm, Cold, Read-only.
+ *  3. Read Hotness: measurement of read frequency of a leaf.
+ *
+ * The stats serve two purposes:
+ *  1. To determine whether a leaf should be compacted to increase read performance.
+ *  2. To group minruns with similar hotness together during merge to increase future GC efficiency.
+ */
+class LeafStatStore {
+public:
+    static constexpr int read_interval_in_micros = 5000000; // five seconds
+    static constexpr double read_hotness_exp_smooth_factor = 0.8;
+    static constexpr double write_hotness_exp_smooth_factor = 0.8;
+
+    struct LeafStat {
+        int group_id;
+        double write_hotness;
+        // read_hotness = read_hotness_exp_smooth_factor * reads_in_last_interval + read_hotness * (1 - read_hotness_exp_smooth_factor)
+        double read_hotness;
+        long long last_write_time_in_s;
+        long long reads_in_last_interval;
+    };
+
+    void NewLeaf(const std::string & key) {
+        MutexLock g(&lock);
+        m[key] = {-1, 0, 0, (long long)Env::Default()->NowMicros() / 1000000, 0};
+    }
+
+    void IncrementLeafReads(const std::string & leaf_key) {
+        MutexLock g(&lock);
+        auto it = m.find(leaf_key);
+        if (it == m.end())
+            return;
+        LeafStat & stat = it->second;
+        ++stat.reads_in_last_interval;
+    }
+
+    double GetWriteHotness(const std::string & leaf_key) {
+        MutexLock g(&lock);
+        auto it = m.find(leaf_key);
+        if (it == m.end())
+            return -1;
+        return it->second.write_hotness;
+    }
+
+    double GetReadHotness(const std::string & leaf_key) {
+        MutexLock g(&lock);
+        auto it = m.find(leaf_key);
+        if (it == m.end())
+            return -1;
+        return it->second.read_hotness;
+    }
+
+    void DeleteLeaf(const std::string & leaf_key) {
+        MutexLock g(&lock);
+        m.erase(leaf_key);
+    }
+
+    void UpdateWriteHotness(const std::string &leaf_key, int writes) {
+        MutexLock g(&lock);
+        auto it = m.find(leaf_key);
+        if (it == m.end()) {
+            g.Release();
+            NewLeaf(leaf_key);
+            UpdateWriteHotness(leaf_key, writes);
+            return;
+        }
+
+        LeafStat & stat = it->second;
+        long long cur_time_in_s = Env::Default()->NowMicros() / 1000000;
+        // We weight the writes by the inverse of the amount of time elapsed since last update.
+        // Therefore, the longer the elapsed time is, the less the writes contribute to the hotness.
+        // This reflects not only the amount of the writes but also the frequency of writes.
+        double weighted_writes = (double)writes / std::max(1LL, cur_time_in_s - stat.last_write_time_in_s);
+        stat.write_hotness = ExpSmoothUpdate(stat.write_hotness, weighted_writes, write_hotness_exp_smooth_factor);
+        stat.last_write_time_in_s = cur_time_in_s;
+    }
+
+    void SplitLeaf(const std::string & leaf_key, const std::string & first_half_key) {
+        // leaf_key is splitted into (first_half_key, leaf_key)
+        MutexLock g(&lock);
+        if (m.find(leaf_key) == m.end())
+            return;
+        m[first_half_key] = {-1, 0, 0, (long long)Env::Default()->NowMicros() / 1000000, 0};
+        LeafStat & first_half_leaf_stat = m[first_half_key];
+        LeafStat & second_half_leaf_stat = m[leaf_key];
+        first_half_leaf_stat.write_hotness = second_half_leaf_stat.write_hotness /= 2;
+        first_half_leaf_stat.reads_in_last_interval = second_half_leaf_stat.reads_in_last_interval /= 2;
+        first_half_leaf_stat.group_id = second_half_leaf_stat.group_id;
+        first_half_leaf_stat.last_write_time_in_s = second_half_leaf_stat.last_write_time_in_s;
+    }
+
+
+    void UpdateReadHotness() {
+        MutexLock g(&lock);
+        for (auto & kv : m) {
+            UpdateReadHotnessForOneLeaf(kv.second);
+        }
+    }
+
+private:
+
+    double ExpSmoothUpdate(double old, double new_sample, double factor) {
+        return old * (1 - factor) + new_sample * factor;
+    }
+
+    inline double ComputeReadHotness(double current_read_hotness, int current_interval_reads) {
+        return current_read_hotness * (1 - read_hotness_exp_smooth_factor) + current_interval_reads * read_hotness_exp_smooth_factor;
+    }
+
+    void UpdateReadHotnessForOneLeaf(LeafStat & stat) {
+        stat.read_hotness = ExpSmoothUpdate(stat.read_hotness, stat.reads_in_last_interval, read_hotness_exp_smooth_factor);
+        stat.reads_in_last_interval = 0;
+    }
+
+    port::Mutex lock;
+    std::unordered_map<std::string, LeafStat> m;
+};
+
 class LeafStore {
  public:
     static Status Open(SegmentManager *seg_manager, DB *leaf_index,
@@ -113,7 +242,7 @@ class LeafStore {
                        LeafStore **store);
 
     Status Get(const ReadOptions &options, const LookupKey &key,
-               std::string *value);
+               std::string *value, LeafStatStore & stat_store);
 
     Iterator* NewIterator(const ReadOptions &options);
 

@@ -26,13 +26,22 @@ class SCOPED_LOCKABLE MutexLock {
       : mu_(mu)  {
     this->mu_->Lock();
   }
-  ~MutexLock() UNLOCK_FUNCTION() { this->mu_->Unlock(); }
+  ~MutexLock() UNLOCK_FUNCTION() {
+      if (this->mu_)
+        this->mu_->Unlock();
+  }
 
   MutexLock(const MutexLock&) = delete;
   MutexLock& operator=(const MutexLock&) = delete;
+  void Release() {
+      if (this->mu_) {
+          this->mu_->Unlock();
+          this->mu_ = nullptr;
+      }
 
+  }
  private:
-  port::Mutex *const mu_;
+  port::Mutex * mu_;
 };
 
 }  // namespace leveldb

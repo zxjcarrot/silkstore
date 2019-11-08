@@ -99,6 +99,9 @@ struct LEVELDB_EXPORT Options {
 
   size_t segment_file_size_thresh;
 
+  // Maximum size of a leaf allowed before triggering split
+  size_t leaf_datasize_thresh;
+
   size_t leaf_max_num_miniruns;
 
   size_t storage_block_size;
@@ -172,6 +175,10 @@ struct LEVELDB_EXPORT Options {
   //
   // Default: nullptr
   const FilterPolicy* filter_policy;
+
+  // Whether leaf optimization mechanism is turned on.
+  // Default: false
+  double enable_leaf_read_opt;
 
   // Create an Options object with default values for all fields.
   Options();
