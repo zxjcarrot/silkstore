@@ -29,6 +29,7 @@ struct MiniRunBuilder::Rep {
     uint64_t start_offset; // records the start of a minirun and reduces the size of a BlockHandle after varint encoding.
     uint64_t offset;
     uint32_t run_datasize;
+    BlockHandle last_block_handle; // records the size of the last block, used for garbage collection
     Status status;
     BlockBuilder data_block;
     BlockBuilder index_block;
@@ -123,6 +124,7 @@ void MiniRunBuilder::Flush() {
     WriteBlock(&r->data_block, &r->pending_handle);
     // Store the current size of the run
     r->run_datasize += r->pending_handle.size();
+    r->last_block_handle = r->pending_handle;
     // We store offset to the start of the run in pending_handle to enable high compression rate.
     r->pending_handle.set_offset(r->pending_handle.offset() - r->start_offset);
 
@@ -299,6 +301,10 @@ uint64_t MiniRunBuilder::FileSize() const {
 
 uint32_t  MiniRunBuilder::GetCurrentRunDataSize() const {
     return rep_->run_datasize;
+}
+
+BlockHandle  MiniRunBuilder::GetLastBlockHandle() const {
+    return rep_->last_block_handle;
 }
 
 }  // namespace silkstore

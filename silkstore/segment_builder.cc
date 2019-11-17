@@ -31,9 +31,12 @@ struct SegmentBuilder::Rep {
     Status status;
     std::string src_segment_filepath;
     std::string target_segment_filepath;
+    uint32_t seg_id;
+    SegmentManager * segment_mgr;
 
     Rep(const Options &opt, const std::string &src_segment_filepath,
-        const std::string &target_segment_filepath, WritableFile *f)
+        const std::string &target_segment_filepath, WritableFile *f,
+        uint32_t seg_id, SegmentManager * segment_mgr)
         : options(opt),
           file(f),
           num_entries(0),
@@ -41,7 +44,8 @@ struct SegmentBuilder::Rep {
           run_started(false),
           prev_file_size(0),
           src_segment_filepath(src_segment_filepath),
-          target_segment_filepath(target_segment_filepath) {}
+          target_segment_filepath(target_segment_filepath),
+          seg_id(seg_id), segment_mgr(segment_mgr){}
 
     ~Rep() {
         delete file;
@@ -49,13 +53,18 @@ struct SegmentBuilder::Rep {
 };
 
 SegmentBuilder::SegmentBuilder(const Options &options, const std::string &src_segment_filepath,
-                               const std::string &target_segment_filepath, WritableFile *file)
-        : rep_(new Rep(options, src_segment_filepath, target_segment_filepath, file)) {
+                               const std::string &target_segment_filepath, WritableFile *file,
+                               uint32_t seg_id, SegmentManager * segment_mgr)
+        : rep_(new Rep(options, src_segment_filepath, target_segment_filepath, file, seg_id, segment_mgr)) {
 }
 
 SegmentBuilder::~SegmentBuilder() {
     delete rep_->run_builder;
     delete rep_;
+}
+
+uint32_t SegmentBuilder::SegmentId() const {
+    return rep_->seg_id;
 }
 
 Status SegmentBuilder::StartMiniRun() {
@@ -97,7 +106,7 @@ Status SegmentBuilder::FinishMiniRun(uint32_t * run_no) {
     r->status = r->run_builder->Finish();
     if (!ok()) return status();
     *run_no = r->run_handles.size();
-    r->run_handles.push_back(r->prev_file_size);
+    r->run_handles.push_back(MiniRunHandle{r->prev_file_size, r->run_builder->GetLastBlockHandle()});
     r->prev_file_size = r->run_builder->FileSize();
     r->run_started = false;
     return Status::OK();
@@ -120,11 +129,12 @@ Status SegmentBuilder::status() const {
 Status SegmentBuilder::Finish() {
     Rep *r = rep_;
 
-    /* TODO: Write out handles to the runs */
     std::string buf;
 
     for (auto handle : r->run_handles) {
-        PutFixed64(&buf, handle);
+        PutFixed64(&buf, handle.run_start_pos);
+        PutFixed64(&buf, handle.last_block_handle.offset());
+        PutFixed64(&buf, handle.last_block_handle.size());
     }
     size_t buf_size = buf.size();
     r->status = r->file->Append(buf);
@@ -133,6 +143,7 @@ Status SegmentBuilder::Finish() {
     PutFixed64(&buf, buf_size);
     r->status = r->file->Append(buf);
     r->file->Flush();
+
     return Env::Default()->RenameFile(r->src_segment_filepath, r->target_segment_filepath);
 }
 

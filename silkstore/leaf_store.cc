@@ -358,7 +358,6 @@ Status LeafIndexEntryBuilder::RemoveMiniRunRange(const LeafIndexEntry &base,
 }
 
 Iterator* LeafStore::NewIterator(const ReadOptions &options) {
-    // TODO: implment iterator interface
     return new LeafStoreIterator(options, this);
 }
 
@@ -376,7 +375,7 @@ Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::str
     ParseInternalKey(key.internal_key(), &parsed_lookup_key);
     auto processor = [&, this](const MiniRunIndexEntry &minirun_index_entry, uint32_t) -> bool {
         ++runs_searched;
-        if (false && options_.filter_policy) {
+        if (options_.filter_policy) {
             FilterBlockReader filter(options_.filter_policy, minirun_index_entry.GetFilterData());
             if (filter.KeyMayMatch(0, key.internal_key()) == false) {
                 return false;
@@ -387,6 +386,7 @@ Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::str
         s = seg_manager_->OpenSegment(seg_no, &seg);
         if (!s.ok())
             return true;
+        DeferCode c2([this, seg](){seg_manager_->DropSegment(seg);});
 
         Block index_block(BlockContents{minirun_index_entry.GetBlockIndexData(), false, false});
         MiniRun *run;
@@ -395,8 +395,7 @@ Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::str
         if (!s.ok())
             return true;
 
-        Iterator *iter = run->NewIterator(options);
-        DeferCode c([iter, run](){delete run; delete iter;});
+        std::unique_ptr<Iterator> iter(run->NewIterator(options));
         iter->Seek(key.internal_key());
 
         if (iter->Valid()) {
@@ -407,16 +406,10 @@ Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::str
             } else {
                 auto parsed_user_key = parsed_key.user_key;
                 auto key_user_key = key.user_key();
-                auto parsed_user_value = iter->value();
                 if (user_cmp_->Compare(parsed_user_key, key_user_key) == 0) {
                     if (parsed_key.type == kTypeValue) { // kFound
                         value->assign(iter->value().data(), iter->value().size());
                         key_status = Status::OK();
-                        iter->Prev();
-                        if (iter->Valid()) {
-                            auto prev_key = iter->key();
-                            auto prev_value = iter->key();
-                        }
                     } else { // kDeleted
                         key_status = Status::NotFound("");
                     }
@@ -433,8 +426,9 @@ Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::str
     return !s.ok() ? s : key_status;
 }
 
-static void NewIteratorForLeafCleanupFunc(void *arg1, void *) {
+static void NewIteratorForLeafCleanupFunc(void *arg1, void * arg2) {
     delete static_cast<MiniRun *>(arg1);
+    static_cast<Segment *>(arg2)->UnRef();
 }
 
 Iterator *LeafStore::NewIteratorForLeaf(const ReadOptions &options, const LeafIndexEntry &leaf_index_entry, Status &s,
@@ -442,8 +436,11 @@ Iterator *LeafStore::NewIteratorForLeaf(const ReadOptions &options, const LeafIn
     s = Status::OK();
     std::vector<Iterator *> iters;
     std::vector<MiniRun *> runs;
+    std::vector<Segment*> segs;
     iters.reserve(leaf_index_entry.GetNumMiniRuns());
     runs.reserve(leaf_index_entry.GetNumMiniRuns());
+    segs.reserve(leaf_index_entry.GetNumMiniRuns());
+
     auto processor = [&, this](const MiniRunIndexEntry &minirun_index_entry, uint32_t run_no) -> bool {
         if (start_minirun_no <= run_no && run_no <= end_minirun_no) {
             uint32_t seg_no = minirun_index_entry.GetSegmentNumber();
@@ -455,11 +452,15 @@ Iterator *LeafStore::NewIteratorForLeaf(const ReadOptions &options, const LeafIn
             Block index_block(BlockContents{minirun_index_entry.GetBlockIndexData(), false, false});
             uint32_t run_idx_in_seg = minirun_index_entry.GetRunNumberWithinSegment();
             s = seg->OpenMiniRun(run_idx_in_seg, index_block, &run);
-            if (!s.ok())
+            if (!s.ok()) {
+                seg->UnRef();
                 return true; // error, early return
+            }
+
             Iterator *iter = run->NewIterator(options);
             iters.push_back(iter);
             runs.push_back(run);
+            segs.push_back(seg);
         }
 
         return false;
@@ -470,9 +471,10 @@ Iterator *LeafStore::NewIteratorForLeaf(const ReadOptions &options, const LeafIn
     if (!s.ok()) {
         return nullptr;
     }
+    assert(runs.size() == segs.size());
     // Destroy miniruns opened when iterator is deleted by MergingIterator
     for (int i = 0; i < iters.size(); ++i) {
-        iters[i]->RegisterCleanup(NewIteratorForLeafCleanupFunc, runs[i], nullptr);
+        iters[i]->RegisterCleanup(NewIteratorForLeafCleanupFunc, runs[i], segs[i]);
     }
     return NewMergingIterator(options_.comparator, &iters[0], iters.size());
 }

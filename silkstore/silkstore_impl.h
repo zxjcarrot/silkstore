@@ -27,6 +27,8 @@
 namespace leveldb {
 namespace silkstore {
 
+class GroupedSegmentAppender;
+
 class SilkStore : public DB {
  public:
     SilkStore(const Options &options, const std::string &dbname);
@@ -83,8 +85,13 @@ class SilkStore : public DB {
 
     void BackgroundCompaction();
 
+    Status CopyMinirunRun(Slice leaf_max_key, LeafIndexEntry & index_entry, uint32_t run_idx_in_index_entry, SegmentBuilder * seg_builder);
+    Status GarbageCollectSegment(Segment * seg, GroupedSegmentAppender & appender);
+    void GarbageCollect();
+
     void Destroy();
- private:
+
+private:
 
     friend class DB;
 
@@ -107,6 +114,8 @@ class SilkStore : public DB {
 
     // Lock over the persistent DB state.  Non-null iff successfully acquired.
     FileLock *db_lock_;
+
+    port::Mutex GCMutex;
 
     // State below is protected by mutex_
     port::Mutex mutex_;
@@ -193,7 +202,7 @@ class SilkStore : public DB {
 
     void MaybeScheduleCompaction();
 
-    Status DoCompactionWork();
+    Status DoCompactionWork(WriteBatch & leaf_index_wb);
 
     Status OptimizeLeaf();
 

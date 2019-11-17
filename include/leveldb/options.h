@@ -180,6 +180,15 @@ struct LEVELDB_EXPORT Options {
   // Default: false
   double enable_leaf_read_opt;
 
+  // The maximum storage size in bytes for storing segments.
+  // When storage size approaches this value, garbage collection is initiated.
+  // Default: 0, for unlimited size
+  size_t maximum_segments_storage_size;
+
+  // When storage size for segments >= segments_storage_size_gc_threshold * maximum_segments_storage_size,
+  // garbage collection is initiated.
+  // Default: 0.9
+  double segments_storage_size_gc_threshold;
   // Create an Options object with default values for all fields.
   Options();
 };

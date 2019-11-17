@@ -43,6 +43,7 @@ class MiniRunIndexEntry {
     Slice GetRawData() const { return raw_data_; }
 
     size_t GetRunDataSize() const { return run_datasize_; }
+
     static MiniRunIndexEntry Build(uint32_t seg_no, uint32_t run_no, Slice block_index_data, Slice filter_data, size_t run_datasize, std::string * buf);
 
  private:
@@ -188,7 +189,7 @@ public:
         long long cur_time_in_s = Env::Default()->NowMicros() / 1000000;
         // We weight the writes by the inverse of the amount of time elapsed since last update.
         // Therefore, the longer the elapsed time is, the less the writes contribute to the hotness.
-        // This reflects not only the amount of the writes but also the frequency of writes.
+        // This reflects not only the amount of writes but also the frequency of writes.
         double weighted_writes = (double)writes / std::max(1LL, cur_time_in_s - stat.last_write_time_in_s);
         stat.write_hotness = ExpSmoothUpdate(stat.write_hotness, weighted_writes, write_hotness_exp_smooth_factor);
         stat.last_write_time_in_s = cur_time_in_s;

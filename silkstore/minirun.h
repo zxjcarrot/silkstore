@@ -27,15 +27,20 @@ class SegmentBuilder;
  */
 class MiniRun {
  public:
+    // Returns a iterator ranging over the entire minirun
     Iterator *NewIterator(const ReadOptions &);
 
     MiniRun(const Options *options, RandomAccessFile *file,
             uint64_t off, uint64_t size, Block &index_block);
- private:
     static Iterator *BlockReader(void *, const ReadOptions &, const Slice &);
+
+
+    // Returns a iterator ranging over a specific block in the run
+    Iterator* NewIteratorForOneBlock(const leveldb::ReadOptions &, BlockHandle handle);
+private:
     const Options* options;
     RandomAccessFile *file;
-    uint64_t run_start_off;
+    uint64_t run_start_off; // offset in the file
     uint64_t run_size;
     Block &index_block;
 };
@@ -43,7 +48,10 @@ class MiniRun {
 /*
  * A pointer that stores the location of minirun within a segment.
  */
-typedef uint64_t MiniRunHandle;
+struct MiniRunHandle {
+    uint64_t run_start_pos;
+    BlockHandle last_block_handle;
+};
 
 class MiniRunBuilder {
  public:
@@ -98,6 +106,9 @@ class MiniRunBuilder {
 
     // Size of the current run being built
     uint32_t GetCurrentRunDataSize() const;
+
+    // Size of the last block of the run being built
+    BlockHandle GetLastBlockHandle() const;
  private:
     bool ok() const { return status().ok(); }
 

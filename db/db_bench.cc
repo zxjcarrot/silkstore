@@ -63,10 +63,13 @@ static const char* FLAGS_benchmarks =
     ;
 
 // Number of key/values to place in database
-static int FLAGS_num = 100000000;
+static int FLAGS_num = 10000000;
 
 // Number of read operations to do.  If negative, do FLAGS_num reads.
 static int FLAGS_reads = -1;
+
+// Number of write operations to do.  If negative, do FLAGS_num reads.
+static int FLAGS_table_size = -1;
 
 // Number of concurrent threads to run.
 static int FLAGS_threads = 1;
@@ -530,6 +533,7 @@ class Benchmark {
   int entries_per_batch_;
   WriteOptions write_options_;
   int reads_;
+  int writes_;
   int heap_counter_;
 
   void PrintHeader() {
@@ -539,12 +543,12 @@ class Benchmark {
     fprintf(stdout, "Values:     %d bytes each (%d bytes after compression)\n",
             FLAGS_value_size,
             static_cast<int>(FLAGS_value_size * FLAGS_compression_ratio + 0.5));
-    fprintf(stdout, "Entries:    %d\n", num_);
+    fprintf(stdout, "Entries:    %d\n", FLAGS_table_size);
     fprintf(stdout, "RawSize:    %.1f MB (estimated)\n",
-            ((static_cast<int64_t>(kKeySize + FLAGS_value_size) * num_)
+            ((static_cast<int64_t>(kKeySize + FLAGS_value_size) * FLAGS_table_size)
              / 1048576.0));
     fprintf(stdout, "FileSize:   %.1f MB (estimated)\n",
-            (((kKeySize + FLAGS_value_size * FLAGS_compression_ratio) * num_)
+            (((kKeySize + FLAGS_value_size * FLAGS_compression_ratio) * FLAGS_table_size)
              / 1048576.0));
       fprintf(stdout, "DBImplType:  %s\n", FLAGS_db_type);
     PrintWarnings();
@@ -924,6 +928,7 @@ class Benchmark {
   }
 
   void Open() {
+      const int kKeySize = 16;
       assert(db_ == nullptr);
       Options options;
       options.env = g_env;
@@ -937,6 +942,7 @@ class Benchmark {
       options.reuse_logs = FLAGS_reuse_logs;
       options.compression = kNoCompression;
       options.enable_leaf_read_opt = FLAGS_enable_leaf_read_opt;
+      options.maximum_segments_storage_size = (static_cast<int64_t>(kKeySize + FLAGS_value_size) * FLAGS_table_size) * 2;
       Status s;
       if (FLAGS_db_type == std::string("silkstore")) {
         DB::OpenSilkStore(options, FLAGS_db, &db_);
@@ -979,7 +985,7 @@ class Benchmark {
     for (int i = 0; i < num_; i += entries_per_batch_) {
       batch.Clear();
       for (int j = 0; j < entries_per_batch_; j++) {
-        const int k = seq ? i+j : (thread->rand.Next() % FLAGS_num);
+        const int k = seq ? (i+j) % FLAGS_table_size : (thread->rand.Next() % FLAGS_table_size);
         char key[100];
         snprintf(key, sizeof(key), "%016d", k);
         batch.Put(key, gen.Generate(value_size_));
@@ -1005,6 +1011,9 @@ class Benchmark {
       ++i;
     }
     delete iter;
+    char msg[100];
+    snprintf(msg, sizeof(msg), "%lld bytes", bytes);
+    thread->stats.AddMessage(msg);
     thread->stats.AddBytes(bytes);
   }
 
@@ -1032,7 +1041,7 @@ class Benchmark {
     thread->stats.AddMessage(msg);
     for (int i = 0; i < reads_; i++) {
       char key[100];
-      const int k = thread->rand.Next() % FLAGS_num;
+      const int k = thread->rand.Next() % FLAGS_table_size;
       snprintf(key, sizeof(key), "%016d", k);
       if (db_->Get(options, key, &value).ok()) {
         found++;
@@ -1042,8 +1051,11 @@ class Benchmark {
 
     std::string runs_searched;
     db_->GetProperty("silkstore.runs_searched", &runs_searched);
-    snprintf(msg, sizeof(msg), "(%d of %d found), runs_searched %s ", found, num_, runs_searched.c_str());
+    std::string leaf_avg_num_runs;
+    db_->GetProperty("silkstore.leaf_avg_num_runs", &leaf_avg_num_runs);
+    snprintf(msg, sizeof(msg), "(%d of %d found), runs_searched %s leaf_avg_num_runs %s", found, num_, runs_searched.c_str(), leaf_avg_num_runs.c_str());
     thread->stats.AddMessage(msg);
+
     //std::string leaf_stats;
     //db_->GetProperty("silkstore.leaf_stats", &leaf_stats);
     //thread->stats.AddMessage(leaf_stats);
@@ -1054,7 +1066,7 @@ class Benchmark {
     std::string value;
     for (int i = 0; i < reads_; i++) {
       char key[100];
-      const int k = thread->rand.Next() % FLAGS_num;
+      const int k = thread->rand.Next() % FLAGS_table_size;
       snprintf(key, sizeof(key), "%016d.", k);
       db_->Get(options, key, &value);
       thread->stats.FinishedSingleOp();
@@ -1064,7 +1076,7 @@ class Benchmark {
   void ReadHot(ThreadState* thread) {
     ReadOptions options;
     std::string value;
-    const int range = (FLAGS_num + 99) / 100;
+    const int range = (FLAGS_table_size + 99) / 100;
     for (int i = 0; i < reads_; i++) {
       char key[100];
       const int k = thread->rand.Next() % range;
@@ -1080,7 +1092,7 @@ class Benchmark {
     for (int i = 0; i < reads_; i++) {
       Iterator* iter = db_->NewIterator(options);
       char key[100];
-      const int k = thread->rand.Next() % FLAGS_num;
+      const int k = thread->rand.Next() % FLAGS_table_size;
       snprintf(key, sizeof(key), "%016d", k);
       iter->Seek(key);
       if (iter->Valid() && iter->key() == key) found++;
@@ -1099,7 +1111,7 @@ class Benchmark {
     for (int i = 0; i < num_; i += entries_per_batch_) {
       batch.Clear();
       for (int j = 0; j < entries_per_batch_; j++) {
-        const int k = seq ? i+j : (thread->rand.Next() % FLAGS_num);
+        const int k = seq ? (i+j) % FLAGS_table_size : (thread->rand.Next() % FLAGS_table_size);
         char key[100];
         snprintf(key, sizeof(key), "%016d", k);
         batch.Delete(key);
@@ -1136,7 +1148,7 @@ class Benchmark {
           }
         }
 
-        const int k = thread->rand.Next() % FLAGS_num;
+        const int k = thread->rand.Next() % FLAGS_table_size;
         char key[100];
         snprintf(key, sizeof(key), "%016d", k);
         Status s = db_->Put(write_options_, key, gen.Generate(value_size_));
@@ -1264,7 +1276,9 @@ int main(int argc, char** argv) {
       FLAGS_num_ops_in_mixed_wl = std::stoi(argv[i] + 22);
     } else if (strncmp(argv[i], "--enable_leaf_read_opt=", 23) == 0) {
       FLAGS_enable_leaf_read_opt = std::stoi(argv[i] + 23);
-    }else {
+    } else if (strncmp(argv[i], "--table_size=", 13) == 0) {
+      FLAGS_table_size = std::stoi(argv[i] + 13);
+    } else {
       fprintf(stderr, "Invalid flag '%s'\n", argv[i]);
       exit(1);
     }
@@ -1279,6 +1293,8 @@ int main(int argc, char** argv) {
       FLAGS_db = default_db_path.c_str();
   }
 
+  if (FLAGS_table_size == -1)
+      FLAGS_table_size = FLAGS_num;
   leveldb::Benchmark benchmark;
   benchmark.Run();
   return 0;

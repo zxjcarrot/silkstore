@@ -44,6 +44,26 @@ static void ReleaseBlock(void *arg, void *h) {
     cache->Release(handle);
 }
 
+Iterator* MiniRun::NewIteratorForOneBlock(const leveldb::ReadOptions & read_options, BlockHandle handle) {
+    Block *block = nullptr;
+
+    BlockContents contents;
+
+    Status s = ReadBlock(this->file, read_options, handle, &contents);
+    if (s.ok()) {
+        block = new Block(contents);
+    }
+
+    Iterator* iter;
+    if (block == nullptr) {
+        return NewErrorIterator(s);
+    } else {
+        iter = block->NewIterator(this->options->comparator);
+        iter->RegisterCleanup(&DeleteBlock, block, nullptr);
+    }
+    return iter;
+}
+
 // Convert an index iterator value (i.e., an encoded BlockHandle)
 // into an iterator over the contents of the corresponding block.
 Iterator *MiniRun::BlockReader(void *arg,
