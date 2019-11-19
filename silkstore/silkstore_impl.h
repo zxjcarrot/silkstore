@@ -206,6 +206,8 @@ private:
 
     Status OptimizeLeaf();
 
+    Status MakeRoomInLeafLayer(WriteBatch & leaf_index_wb);
+
     static void BGWork(void* db);
     void BackgroundCall();
 
