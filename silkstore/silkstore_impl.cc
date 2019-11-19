@@ -1026,8 +1026,8 @@ Status SilkStore::GarbageCollectSegment(Segment *seg, GroupedSegmentAppender &ap
         }
         return false;
     });
-    if (copied)
-        fprintf(stderr, "Copied %f%% the data from segment %d\n", (copied+0.0)/segment_size * 100, seg->SegmentId());
+    //if (copied)
+    //    fprintf(stderr, "Copied %f%% the data from segment %d\n", (copied+0.0)/segment_size * 100, seg->SegmentId());
     return Status::OK();
 }
 
@@ -1367,7 +1367,7 @@ Status SilkStore::DoCompactionWork(WriteBatch & leaf_index_wb) {
         }
     }
 
-    if (s.ok() && mit->Valid()) {
+    while (s.ok() && mit->Valid()) {
         SegmentBuilder* seg_builder = nullptr;
         s = grouped_segment_appender.MakeRoomForGroupAndGetBuilder(0, &seg_builder);
         if (!s.ok())
@@ -1375,13 +1375,14 @@ Status SilkStore::DoCompactionWork(WriteBatch & leaf_index_wb) {
         uint32_t seg_id = seg_builder->SegmentId();
 
         // Memtable has keys that are greater than all the keys in leaf_index_
-        // TODO: In this case, create new leaves whose runs store no more than 1MB of data each.
+        // In this case, create new leaves whose runs store no more than options_.leaf_datasize_thresh bytes of data each.
         assert(seg_builder->RunStarted() == false);
         s = seg_builder->StartMiniRun();
         if (!s.ok()) {
             fprintf(stderr, s.ToString().c_str());
             return s;
         }
+        size_t bytes = 0;
         int minirun_key_cnt = 0;
         while (mit->Valid()) {
             Slice imm_internal_key = mit->key();
@@ -1391,7 +1392,12 @@ Status SilkStore::DoCompactionWork(WriteBatch & leaf_index_wb) {
                 fprintf(stderr, s.ToString().c_str());
                 return s;
             }
+            // A leaf holds at least one key-value pair and at most options_.leaf_datasize_thresh bytes of data.
+            if (minirun_key_cnt > 0 && bytes + imm_internal_key.size() + mit->value().size() >= options_.leaf_datasize_thresh) {
+                break;
+            }
             leaf_max_key = parsed_internal_key.user_key;
+
             seg_builder->Add(imm_internal_key, mit->value());
             ++minirun_key_cnt;
             mit->Next();
@@ -1417,7 +1423,7 @@ Status SilkStore::DoCompactionWork(WriteBatch & leaf_index_wb) {
         stat_store_.UpdateWriteHotness(leaf_max_key.ToString(), minirun_key_cnt);
     }
     //fprintf(stderr, "Background compaction finished, last segment %d\n", seg_id);
-    fprintf(stderr, "avg runsize %d, self compactions %d, num_splits %d, num_leaves %d, memtable size %lu, segments size %lu\n", imm_->ApproximateMemoryUsage() / num_leaves_snap, self_compaction, num_splits, num_leaves_snap, imm_->ApproximateMemoryUsage(), segment_manager_->ApproximateSize());
+    //fprintf(stderr, "avg runsize %d, self compactions %d, num_splits %d, num_leaves %d, memtable size %lu, segments size %lu\n", imm_->ApproximateMemoryUsage() / num_leaves_snap, self_compaction, num_splits, num_leaves_snap, imm_->ApproximateMemoryUsage(), segment_manager_->ApproximateSize());
     ++num_compactions;
     return s;
 }

@@ -1,60 +1,325 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="BookmarkManager">
+    <bookmark url="file://$PROJECT_DIR$/db/db_impl.h" line="162" />
+    <bookmark url="file://$PROJECT_DIR$/db/db_impl.cc" description="struct DBImpl::Writer {" line="42" />
+    <bookmark url="file://$PROJECT_DIR$/../dolphindb_server/build-raft/DolphinDB/src/DFS.cpp" description="}" line="3751" />
+    <bookmark url="file://$PROJECT_DIR$/silkstore/silkstore_impl.cc" line="1425" mnemonic="9" />
+  </component>
   <component name="CMakeRunConfigurationManager" shouldGenerate="true" shouldDeleteObsolete="true">
-    <generated />
+    <generated>
+      <config projectName="silkstore" targetName="fault_injection_test" />
+      <config projectName="silkstore" targetName="coding_test" />
+      <config projectName="silkstore" targetName="table_test" />
+      <config projectName="silkstore" targetName="version_set_test" />
+      <config projectName="silkstore" targetName="version_edit_test" />
+      <config projectName="silkstore" targetName="issue178_test" />
+      <config projectName="silkstore" targetName="logging_test" />
+      <config projectName="silkstore" targetName="leveldbutil" />
+      <config projectName="silkstore" targetName="dbformat_test" />
+      <config projectName="silkstore" targetName="leveldb" />
+      <config projectName="silkstore" targetName="util_test" />
+      <config projectName="silkstore" targetName="env_test" />
+      <config projectName="silkstore" targetName="crc32c_test" />
+      <config projectName="silkstore" targetName="issue200_test" />
+      <config projectName="silkstore" targetName="write_batch_test" />
+      <config projectName="silkstore" targetName="cache_test" />
+      <config projectName="silkstore" targetName="corruption_test" />
+      <config projectName="silkstore" targetName="silkstore_test" />
+      <config projectName="silkstore" targetName="minirun_test" />
+      <config projectName="silkstore" targetName="log_test" />
+      <config projectName="silkstore" targetName="bloom_test" />
+      <config projectName="silkstore" targetName="db_bench" />
+      <config projectName="silkstore" targetName="memenv_test" />
+      <config projectName="silkstore" targetName="hash_test" />
+      <config projectName="silkstore" targetName="status_test" />
+      <config projectName="silkstore" targetName="env_posix_test" />
+      <config projectName="silkstore" targetName="filename_test" />
+      <config projectName="silkstore" targetName="no_destructor_test" />
+      <config projectName="silkstore" targetName="filter_block_test" />
+      <config projectName="silkstore" targetName="autocompact_test" />
+      <config projectName="silkstore" targetName="recovery_test" />
+      <config projectName="silkstore" targetName="skiplist_test" />
+      <config projectName="silkstore" targetName="arena_test" />
+      <config projectName="silkstore" targetName="c_test" />
+      <config projectName="silkstore" targetName="db_test" />
+    </generated>
   </component>
   <component name="CMakeSettings">
     <configurations>
-      <configuration PROFILE_NAME="Debug" CONFIG_NAME="Debug" />
+      <configuration PROFILE_NAME="Debug-234" CONFIG_NAME="Debug" TOOLCHAIN_NAME="234" GENERATION_OPTIONS="-DCMAKE_BUILD_TYPE=DEBUG">
+        <ADDITIONAL_GENERATION_ENVIRONMENT>
+          <envs>
+            <env name="VERBOSE" value="1" />
+          </envs>
+        </ADDITIONAL_GENERATION_ENVIRONMENT>
+      </configuration>
+      <configuration PROFILE_NAME="Release-234" CONFIG_NAME="Release" TOOLCHAIN_NAME="234" />
+      <configuration PROFILE_NAME="RelWithDebInfo-234" CONFIG_NAME="RelWithDebInfo" TOOLCHAIN_NAME="234">
+        <ADDITIONAL_GENERATION_ENVIRONMENT>
+          <envs>
+            <env name="VERBOSE" value="1" />
+          </envs>
+        </ADDITIONAL_GENERATION_ENVIRONMENT>
+      </configuration>
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8084bb2d-c816-4c57-8dde-be7e8bcda01b" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/design_doc/design.md" beforeDir="false" afterPath="$PROJECT_DIR$/design_doc/design.md" afterDir="false" />
+    <list default="true" id="8084bb2d-c816-4c57-8dde-be7e8bcda01b" name="Default Changelist" comment="Add KMeans classifier and tests">
+      <change beforePath="$PROJECT_DIR$/.idea/silkstore.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/silkstore.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/db/db_bench.cc" beforeDir="false" afterPath="$PROJECT_DIR$/db/db_bench.cc" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/silkstore/silkstore_impl.cc" beforeDir="false" afterPath="$PROJECT_DIR$/silkstore/silkstore_impl.cc" afterDir="false" />
     </list>
+    <ignored path="$PROJECT_DIR$/cmake-build-debug-234/" />
+    <ignored path="$PROJECT_DIR$/cmake-build-release-234/" />
+    <ignored path="$PROJECT_DIR$/cmake-build-relwithdebinfo-234/" />
+    <ignored path="$PROJECT_DIR$/cmake-build-relwithdebinfo-237/" />
+    <ignored path="$PROJECT_DIR$/cmake-build-relwithdebinfo-235/" />
+    <ignored path="$PROJECT_DIR$/cmake-build-debug-235/" />
+    <ignored path="$PROJECT_DIR$/cmake-build-release-235/" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="CMakeBuildProfile:RelWithDebInfo-234" />
+  <component name="FavoritesManager">
+    <favorites_list name="silkstore" />
+  </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/LICENSE">
+        <entry file="file://$PROJECT_DIR$/db/db_bench.cc">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="336">
-              <caret line="21" lean-forward="true" selection-start-line="21" selection-end-line="21" />
+            <state relative-caret-position="459">
+              <caret line="265" column="3" lean-forward="true" selection-start-line="265" selection-start-column="3" selection-end-line="265" selection-end-column="3" />
+              <folding>
+                <element signature="e#217#235#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/silkstore/silkstore_test.cc">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="132">
+              <caret line="263" column="34" selection-start-line="263" selection-start-column="34" selection-end-line="263" selection-end-column="34" />
+              <folding>
+                <element signature="e#263#286#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/util/bloom.cc">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="290">
+              <caret line="92" column="1" lean-forward="true" selection-start-line="92" selection-start-column="1" selection-end-line="92" selection-end-column="1" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/include/leveldb/options.h">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="160">
+              <caret line="192" column="7" selection-start-line="192" selection-start-column="7" selection-end-line="192" selection-end-column="7" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/util/options.cc">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="289">
+              <caret line="40" column="35" selection-start-line="40" selection-start-column="35" selection-end-line="40" selection-end-column="35" />
+              <folding>
+                <element signature="e#217#245#0" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
       </file>
       <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/design_doc/design.md">
-          <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
-            <state split_layout="SPLIT">
-              <first_editor relative-caret-position="527">
-                <caret line="85" column="8" lean-forward="true" selection-start-line="85" selection-start-column="8" selection-end-line="85" selection-end-column="8" />
-              </first_editor>
-              <second_editor />
+        <entry file="file://$PROJECT_DIR$/silkstore/silkstore_impl.cc">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="308">
+              <caret line="1374" column="25" lean-forward="true" selection-start-line="1374" selection-start-column="25" selection-end-line="1374" selection-end-column="25" />
+              <folding>
+                <element signature="e#46#63#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/db/db_impl.cc">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="427">
+              <caret line="1431" column="29" lean-forward="true" selection-start-line="1431" selection-start-column="29" selection-end-line="1431" selection-end-column="29" />
+              <folding>
+                <element signature="e#217#240#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/util/env_posix.cc">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="278">
+              <caret line="130" column="24" selection-start-line="130" selection-start-column="24" selection-end-line="130" selection-end-column="24" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/include/leveldb/env.h">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="160">
+              <caret line="181" column="16" selection-start-line="181" selection-start-column="2" selection-end-line="181" selection-end-column="16" />
+              <folding>
+                <element signature="e#702#721#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/silkstore/leaf_store.cc">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="162">
+              <caret line="23" column="35" selection-start-line="23" selection-start-column="35" selection-end-line="23" selection-end-column="35" />
+              <folding>
+                <element signature="e#48#65#0" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
       </file>
     </leaf>
   </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="CMakeLists.txt" />
+      </list>
+    </option>
+  </component>
+  <component name="FindInProjectRecents">
+    <findStrings>
+      <find>Approximate</find>
+      <find>SequentialFil</find>
+      <find>Posix</find>
+      <find>SequentialFile</find>
+      <find>Options</find>
+      <find>sizeof</find>
+      <find>db_bench</find>
+      <find>sizeof(</find>
+      <find>NewBloom</find>
+      <find>options.</find>
+      <find>memsize_t</find>
+      <find>FLAGS_value_size</find>
+      <find>garbage</find>
+      <find>GarbageCollectSegment</find>
+      <find>copied</find>
+      <find>Copied</find>
+      <find>stats</find>
+      <find>WriteRandom</find>
+      <find>opensilk</find>
+      <find>fillseq</find>
+      <find>DoCOmpaction</find>
+      <find>finished</find>
+      <find>stderr</find>
+      <find>stdout</find>
+      <find>a</find>
+      <find>LevelDB:</find>
+      <find>fprintf</find>
+      <find>finish</find>
+      <find>FinishedSingleOp</find>
+      <find>avg</find>
+    </findStrings>
+    <replaceStrings>
+      <replace>minirun</replace>
+    </replaceStrings>
+    <dirStrings>
+      <dir>$PROJECT_DIR$/db</dir>
+      <dir>$PROJECT_DIR$</dir>
+      <dir>$PROJECT_DIR$/silkstore</dir>
+    </dirStrings>
+  </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/silkstore/silkstore_test.cc" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/silkstore/silkstore_impl.cc" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/silkstore/leaf_store.cc" root0="SKIP_INSPECTION" />
   </component>
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
-        <option value="$PROJECT_DIR$/design.md" />
-        <option value="$PROJECT_DIR$/design_doc/design.md" />
+        <option value="$PROJECT_DIR$/silkstore/db_impl.h" />
+        <option value="$PROJECT_DIR$/silkstore/silkdb_impl.cc" />
+        <option value="$PROJECT_DIR$/silkstore/silkdb_impl.h" />
+        <option value="$PROJECT_DIR$/silkstore/leveldb_leaf_index.h" />
+        <option value="$PROJECT_DIR$/silkstore/levebdb_leaf_index_impl.cc" />
+        <option value="$PROJECT_DIR$/silkstore/leveldb_leaf_index_impl.h" />
+        <option value="$PROJECT_DIR$/db/db_impl.h" />
+        <option value="$PROJECT_DIR$/include/leveldb/db.h" />
+        <option value="$PROJECT_DIR$/silkstore/leaf_index.cpp" />
+        <option value="$PROJECT_DIR$/silkstore/leaf_index.h" />
+        <option value="$PROJECT_DIR$/silkstore/leaf_index.cc" />
+        <option value="$PROJECT_DIR$/db/dbformat.h" />
+        <option value="$PROJECT_DIR$/util/util.h" />
+        <option value="$PROJECT_DIR$/design/design.md" />
+        <option value="$PROJECT_DIR$/table/merger.h" />
+        <option value="$PROJECT_DIR$/db/db_iter.cc" />
+        <option value="$PROJECT_DIR$/db/version_set.cc" />
+        <option value="$PROJECT_DIR$/silkstore/silkstore_test.cpp" />
+        <option value="$PROJECT_DIR$/silkstore/silkstore_iter.h" />
+        <option value="$PROJECT_DIR$/silkstore/silkstore_iter.cc" />
+        <option value="$PROJECT_DIR$/include/leveldb/status.h" />
+        <option value="$PROJECT_DIR$/db/filename.h" />
+        <option value="$PROJECT_DIR$/db/filename.cc" />
+        <option value="$PROJECT_DIR$/table/format.h" />
+        <option value="$PROJECT_DIR$/db/db_impl.cc" />
+        <option value="$PROJECT_DIR$/silkstore/silkstore_test.cc" />
+        <option value="$PROJECT_DIR$/silkstore/minirun_test.cc" />
+        <option value="$PROJECT_DIR$/table/filter_block.cc" />
+        <option value="$PROJECT_DIR$/port/port_stdcxx.h" />
+        <option value="$PROJECT_DIR$/include/leveldb/env.h" />
+        <option value="$PROJECT_DIR$/util/mutexlock.h" />
+        <option value="$PROJECT_DIR$/silkstore/util.h" />
+        <option value="$PROJECT_DIR$/CMakeLists.txt" />
+        <option value="$PROJECT_DIR$/silkstore/util.cpp" />
+        <option value="$PROJECT_DIR$/silkstore/util_test.cc" />
+        <option value="$PROJECT_DIR$/silkstore/minirun_builder.cc" />
+        <option value="$PROJECT_DIR$/util/env_posix.cc" />
+        <option value="$PROJECT_DIR$/table/format.cc" />
+        <option value="$PROJECT_DIR$/silkstore/segment_builder.cc" />
+        <option value="$PROJECT_DIR$/silkstore/leaf_store.h" />
+        <option value="$PROJECT_DIR$/include/leveldb/options.h" />
+        <option value="$PROJECT_DIR$/silkstore/silkstore_impl.h" />
+        <option value="$PROJECT_DIR$/silkstore/minirun.cc" />
+        <option value="$PROJECT_DIR$/silkstore/minirun.h" />
+        <option value="$PROJECT_DIR$/silkstore/segment.h" />
+        <option value="$PROJECT_DIR$/silkstore/segment.cc" />
+        <option value="$PROJECT_DIR$/silkstore/leaf_store.cc" />
+        <option value="$PROJECT_DIR$/util/options.cc" />
+        <option value="$PROJECT_DIR$/util/bloom.cc" />
+        <option value="$PROJECT_DIR$/db/db_bench.cc" />
+        <option value="$PROJECT_DIR$/silkstore/silkstore_impl.cc" />
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" extendedState="6">
+  <component name="OCFindUsagesOptions" text="true" ivars="false" properties="true" derivedClasses="false" />
+  <component name="ProjectFrameBounds">
+    <option name="x" value="1" />
     <option name="y" value="23" />
     <option name="width" value="1440" />
     <option name="height" value="877" />
@@ -75,7 +340,12 @@
             <path>
               <item name="silkstore" type="b2602c69:ProjectViewProjectNode" />
               <item name="silkstore" type="462c0819:PsiDirectoryNode" />
-              <item name="design_doc" type="462c0819:PsiDirectoryNode" />
+              <item name="db" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="silkstore" type="b2602c69:ProjectViewProjectNode" />
+              <item name="silkstore" type="462c0819:PsiDirectoryNode" />
+              <item name="silkstore" type="462c0819:PsiDirectoryNode" />
             </path>
           </expand>
           <select />
@@ -84,9 +354,25 @@
     </panes>
   </component>
   <component name="PropertiesComponent">
+    <property name="TODO_SCOPE" value="All Places" />
     <property name="WebServerToolWindowFactoryState" value="true" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
-    <property name="settings.editor.selected.configurable" value="preferences.lookFeel" />
+    <property name="settings.editor.selected.configurable" value="CMakeSettings" />
+  </component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/silkstore" />
+      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/src" />
+      <recent name="$PROJECT_DIR$/rocksdb" />
+    </key>
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/silkstore" />
+      <recent name="$PROJECT_DIR$/include/silkstore" />
+      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/lib" />
+      <recent name="$PROJECT_DIR$/memtable" />
+    </key>
   </component>
   <component name="RunDashboard">
     <option name="ruleStates">
@@ -100,6 +386,220 @@
       </list>
     </option>
   </component>
+  <component name="RunManager" selected="Application.db_bench">
+    <configuration name="arena_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="arena_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="arena_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="autocompact_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="autocompact_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="autocompact_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bloom_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="bloom_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="bloom_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="c_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="c_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="c_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="cache_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="cache_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="cache_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="coding_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="coding_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="coding_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="corruption_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="corruption_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="corruption_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="crc32c_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="crc32c_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="crc32c_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="db_bench" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="--num=300000000 --value_size=128 --table_size=100000000 --db_type=silkstore --use_existing_db=0 --num_ops_in_mixed_wl=20000000 --mixed_wl_sepc=0-1000000-1;0-1000000-1 --enable_leaf_read_opt=1 --benchmarks=fillrandom,readrandom,readseq" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="db_bench" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="db_bench">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="db_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="db_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="db_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="dbformat_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="dbformat_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="dbformat_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="env_posix_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="env_posix_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="env_posix_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="env_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="env_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="env_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="fault_injection_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="fault_injection_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="fault_injection_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="filename_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="filename_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="filename_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="filter_block_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="filter_block_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="filter_block_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="hash_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="hash_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="hash_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="issue178_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="issue178_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="issue178_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="issue200_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="issue200_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="issue200_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="leveldb" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="leveldb" CONFIG_NAME="Debug-234">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="leveldbutil" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="leveldbutil" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="leveldbutil">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="log_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="log_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="log_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="logging_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="logging_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="logging_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="memenv_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="memenv_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="memenv_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="minirun_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="minirun_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="minirun_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="no_destructor_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="no_destructor_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="no_destructor_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="recovery_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="recovery_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="recovery_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="silkstore_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="silkstore_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="silkstore_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="skiplist_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="skiplist_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="skiplist_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="status_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="status_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="status_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="table_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="table_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="table_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="util_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="util_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="util_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="version_edit_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="version_edit_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="version_edit_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="version_set_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="version_set_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="version_set_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="write_batch_test" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="silkstore" TARGET_NAME="write_batch_test" CONFIG_NAME="Debug-234" RUN_TARGET_PROJECT_NAME="silkstore" RUN_TARGET_NAME="write_batch_test">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <list>
+      <item itemvalue="Application.arena_test" />
+      <item itemvalue="Application.autocompact_test" />
+      <item itemvalue="Application.bloom_test" />
+      <item itemvalue="Application.c_test" />
+      <item itemvalue="Application.cache_test" />
+      <item itemvalue="Application.coding_test" />
+      <item itemvalue="Application.corruption_test" />
+      <item itemvalue="Application.crc32c_test" />
+      <item itemvalue="Application.db_bench" />
+      <item itemvalue="Application.db_test" />
+      <item itemvalue="Application.dbformat_test" />
+      <item itemvalue="Application.env_posix_test" />
+      <item itemvalue="Application.env_test" />
+      <item itemvalue="Application.fault_injection_test" />
+      <item itemvalue="Application.filename_test" />
+      <item itemvalue="Application.filter_block_test" />
+      <item itemvalue="Application.hash_test" />
+      <item itemvalue="Application.issue178_test" />
+      <item itemvalue="Application.issue200_test" />
+      <item itemvalue="Application.leveldb" />
+      <item itemvalue="Application.leveldbutil" />
+      <item itemvalue="Application.log_test" />
+      <item itemvalue="Application.logging_test" />
+      <item itemvalue="Application.memenv_test" />
+      <item itemvalue="Application.minirun_test" />
+      <item itemvalue="Application.no_destructor_test" />
+      <item itemvalue="Application.recovery_test" />
+      <item itemvalue="Application.silkstore_test" />
+      <item itemvalue="Application.skiplist_test" />
+      <item itemvalue="Application.status_test" />
+      <item itemvalue="Application.table_test" />
+      <item itemvalue="Application.util_test" />
+      <item itemvalue="Application.version_edit_test" />
+      <item itemvalue="Application.version_set_test" />
+      <item itemvalue="Application.write_batch_test" />
+    </list>
+  </component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
       <changelist id="8084bb2d-c816-4c57-8dde-be7e8bcda01b" name="Default Changelist" comment="" />
@@ -108,65 +608,736 @@
       <option name="presentableId" value="Default" />
       <updated>1561109040013</updated>
       <workItem from="1561109041653" duration="10427000" />
-      <workItem from="1561293765357" duration="801000" />
+      <workItem from="1561293765357" duration="12756000" />
+      <workItem from="1561532379746" duration="9164000" />
+      <workItem from="1561600817896" duration="77000" />
+      <workItem from="1561621441738" duration="52305000" />
+      <workItem from="1562078429266" duration="13908000" />
+      <workItem from="1562310417426" duration="72433000" />
+      <workItem from="1563797979451" duration="3319000" />
+      <workItem from="1563863344982" duration="2704000" />
+      <workItem from="1563866192119" duration="17003000" />
+      <workItem from="1563954393589" duration="28648000" />
+      <workItem from="1564312281367" duration="1267000" />
+      <workItem from="1564451298482" duration="3316000" />
+      <workItem from="1564498649004" duration="2209000" />
+      <workItem from="1564666797353" duration="1933000" />
+      <workItem from="1565184128000" duration="598000" />
+      <workItem from="1565756701559" duration="597000" />
+      <workItem from="1565834276383" duration="71000" />
+      <workItem from="1565855275362" duration="1594000" />
+      <workItem from="1566267484834" duration="2631000" />
+      <workItem from="1568078459932" duration="598000" />
+      <workItem from="1568279697500" duration="2434000" />
+      <workItem from="1568635029629" duration="597000" />
+      <workItem from="1568792897721" duration="73682000" />
+      <workItem from="1570785274681" duration="316000" />
+      <workItem from="1570785717763" duration="18000" />
+      <workItem from="1570799286517" duration="535000" />
+      <workItem from="1570891318684" duration="132508000" />
+      <workItem from="1571907454984" duration="20715000" />
+      <workItem from="1572087725949" duration="31211000" />
+      <workItem from="1572319418754" duration="2441000" />
+      <workItem from="1572331065219" duration="56933000" />
+      <workItem from="1572706284271" duration="262622000" />
     </task>
+    <task id="LOCAL-00001" summary="reorg">
+      <created>1561473963327</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1561473963327</updated>
+    </task>
+    <task id="LOCAL-00002" summary="building upon leveldb instead">
+      <created>1561624287145</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1561624287145</updated>
+    </task>
+    <task id="LOCAL-00003" summary="edit design doc">
+      <created>1562144426229</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1562144426229</updated>
+    </task>
+    <task id="LOCAL-00004" summary="1. edit design doc&#10;2. add partial silkstore implementation">
+      <created>1562334209141</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1562334209141</updated>
+    </task>
+    <task id="LOCAL-00005" summary="implement point read">
+      <created>1563863578209</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1563863578209</updated>
+    </task>
+    <task id="LOCAL-00006" summary="1. update design doc&#10;2. code fixes">
+      <created>1563866372092</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1563866372093</updated>
+    </task>
+    <task id="LOCAL-00007" summary="pass compilation">
+      <created>1563868412431</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1563868412431</updated>
+    </task>
+    <task id="LOCAL-00008" summary="implement merge: normal case">
+      <created>1563888701933</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1563888701933</updated>
+    </task>
+    <task id="LOCAL-00009" summary="track silkstore_impl.cc">
+      <created>1563889040896</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1563889040896</updated>
+    </task>
+    <task id="LOCAL-00010" summary="Add iterator implementation for specific leaves.">
+      <created>1563891951329</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1563891951329</updated>
+    </task>
+    <task id="LOCAL-00011" summary="fix memory leak and correct leaf iterator implementation">
+      <created>1563936194137</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1563936194137</updated>
+    </task>
+    <task id="LOCAL-00012" summary="Add in-leaf compaction">
+      <created>1564021179644</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1564021179644</updated>
+    </task>
+    <task id="LOCAL-00013" summary="Passed major silkstore correctness tests">
+      <created>1571562034222</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1571562034222</updated>
+    </task>
+    <task id="LOCAL-00014" summary="Add iterator implementation for specific leaves.">
+      <created>1572099369479</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1572099369479</updated>
+    </task>
+    <task id="LOCAL-00015" summary="Add benchmark code &amp; bug-fixes">
+      <created>1572749188028</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1572749188028</updated>
+    </task>
+    <task id="LOCAL-00016" summary="Add KMeans impl and tests">
+      <created>1573194487241</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1573194487241</updated>
+    </task>
+    <task id="LOCAL-00017" summary="Add garbage collection">
+      <created>1573982318424</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1573982318424</updated>
+    </task>
+    <option name="localTasksCounter" value="18" />
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="11228000" />
+    <option name="totallyTimeSpent" value="821570000" />
+  </component>
+  <component name="TodoView">
+    <todo-panel id="selected-file">
+      <is-autoscroll-to-source value="true" />
+    </todo-panel>
+    <todo-panel id="all">
+      <are-packages-shown value="true" />
+      <is-autoscroll-to-source value="true" />
+    </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="0" y="23" width="1440" height="877" extended-state="6" />
+    <frame x="1" y="23" width="1440" height="877" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.19098713" />
-      <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
-      <window_info id="Favorites" order="2" side_tool="true" />
+      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.76419216" visible="true" weight="0.23676682" />
+      <window_info id="Structure" order="1" sideWeight="0.23580787" side_tool="true" visible="true" weight="0.23676682" />
+      <window_info id="Favorites" order="2" sideWeight="0.23529412" side_tool="true" weight="0.1695279" />
       <window_info anchor="bottom" id="Message" order="0" />
-      <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Run" order="2" />
-      <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
+      <window_info anchor="bottom" id="Find" order="1" weight="0.23821656" />
+      <window_info anchor="bottom" id="Run" order="2" sideWeight="0.4985694" weight="0.2700637" />
+      <window_info anchor="bottom" id="Debug" order="3" weight="0.38471338" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
-      <window_info anchor="bottom" id="TODO" order="6" />
+      <window_info anchor="bottom" id="TODO" order="6" sideWeight="0.49928468" weight="0.3299363" />
       <window_info anchor="bottom" id="Database Changes" order="7" />
-      <window_info anchor="bottom" id="Version Control" order="8" />
-      <window_info anchor="bottom" id="Terminal" order="9" />
-      <window_info anchor="bottom" id="Event Log" order="10" side_tool="true" />
+      <window_info anchor="bottom" id="Version Control" order="8" weight="0.3057325" />
+      <window_info anchor="bottom" id="Terminal" order="9" weight="0.17197452" />
+      <window_info anchor="bottom" id="Event Log" order="10" sideWeight="0.50143063" side_tool="true" weight="0.32738853" />
+      <window_info anchor="bottom" id="File Transfer" order="11" sideWeight="0.49928468" weight="0.32738853" />
+      <window_info anchor="bottom" id="CMake" order="12" weight="0.45477706" />
+      <window_info active="true" anchor="bottom" id="Messages" order="13" visible="true" weight="0.4165605" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
       <window_info anchor="right" id="Remote Host" order="3" />
       <window_info anchor="right" id="Database" order="4" />
     </layout>
+    <layout-to-restore>
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.2074392" />
+      <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
+      <window_info id="Favorites" order="2" side_tool="true" />
+      <window_info anchor="bottom" id="Message" order="0" />
+      <window_info anchor="bottom" id="Find" order="1" weight="0.41146496" />
+      <window_info anchor="bottom" id="Run" order="2" />
+      <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
+      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
+      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
+      <window_info anchor="bottom" id="TODO" order="6" />
+      <window_info anchor="bottom" id="Database Changes" order="7" />
+      <window_info anchor="bottom" id="Version Control" order="8" weight="0.3299363" />
+      <window_info anchor="bottom" id="Terminal" order="9" weight="0.17197452" />
+      <window_info anchor="bottom" id="Event Log" order="10" side_tool="true" />
+      <window_info anchor="bottom" id="File Transfer" order="11" visible="true" weight="0.22038217" />
+      <window_info anchor="bottom" id="CMake" order="12" weight="0.3299363" />
+      <window_info anchor="bottom" id="Messages" order="13" weight="0.3299363" />
+      <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
+      <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
+      <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
+      <window_info anchor="right" id="Remote Host" order="3" />
+      <window_info anchor="right" id="Database" order="4" />
+    </layout-to-restore>
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="RECENTLY_FILTERED_USER_GROUPS">
+                <collection />
+              </option>
+              <option name="RECENTLY_FILTERED_BRANCH_GROUPS">
+                <collection />
+              </option>
+              <option name="COLUMN_ORDER">
+                <list>
+                  <option value="0" />
+                  <option value="1" />
+                  <option value="2" />
+                  <option value="3" />
+                </list>
+              </option>
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="RECENT_FILTERS">
+      <map>
+        <entry key="Branch">
+          <value>
+            <list />
+          </value>
+        </entry>
+        <entry key="User">
+          <value>
+            <list />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
+    <option name="CHECK_NEW_TODO" value="false" />
+    <MESSAGE value="reorg" />
+    <MESSAGE value="building upon leveldb instead" />
+    <MESSAGE value="edit design doc" />
+    <MESSAGE value="1. edit design doc&#10;2. add partial silkstore implementation" />
+    <MESSAGE value="implement point read" />
+    <MESSAGE value="1. update design doc&#10;2. code fixes" />
+    <MESSAGE value="pass compilation" />
+    <MESSAGE value="implement merge: normal case" />
+    <MESSAGE value="track silkstore_impl.cc" />
+    <MESSAGE value="fix memory leak and correct leaf iterator implementation" />
+    <MESSAGE value="Add in-leaf compaction" />
+    <MESSAGE value="Passed major silkstore correctness tests" />
+    <MESSAGE value="Add iterator implementation for specific leaves." />
+    <MESSAGE value="Add benchmark code &amp; bug-fixes" />
+    <MESSAGE value="Add KMeans impl and tests" />
+    <MESSAGE value="Add garbage collection" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add garbage collection" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/db/db_bench.cc</url>
+          <line>130</line>
+          <option name="timeStamp" value="265" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/silkstore/util.cpp</url>
+          <line>29</line>
+          <option name="timeStamp" value="282" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/silkstore/silkstore_impl.cc</url>
+          <line>1007</line>
+          <option name="timeStamp" value="312" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/silkstore/silkstore_impl.cc</url>
+          <line>1016</line>
+          <option name="timeStamp" value="313" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/db/db_bench.cc</url>
+          <line>1022</line>
+          <option name="timeStamp" value="315" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/design.md">
-      <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
-        <state split_layout="SPLIT">
-          <first_editor relative-caret-position="384">
-            <caret line="14" column="223" lean-forward="true" selection-start-line="14" selection-start-column="223" selection-end-line="14" selection-end-column="223" />
-          </first_editor>
-          <second_editor />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/LICENSE">
+    <entry file="file://$PROJECT_DIR$/db/version_edit_test.cc">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="336">
-          <caret line="21" lean-forward="true" selection-start-line="21" selection-end-line="21" />
+        <state relative-caret-position="-224">
+          <caret line="13" column="21" selection-end-line="46" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/design_doc/design.md">
+    <entry file="file://$PROJECT_DIR$/CMakeLists.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="467">
+          <caret line="301" selection-start-line="301" selection-end-line="301" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/db/skiplist_test.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-6128">
+          <caret line="19" column="36" selection-start-line="19" selection-start-column="36" selection-end-line="19" selection-end-column="36" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/db/recovery_test.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="72">
+          <caret line="13" column="26" selection-start-line="13" selection-start-column="26" selection-end-line="13" selection-end-column="26" />
+          <folding>
+            <element signature="e#217#240#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/silkstore/util.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="298">
+          <caret line="36" column="25" selection-start-line="36" selection-start-column="25" selection-end-line="36" selection-end-column="25" />
+          <folding>
+            <element signature="e#97#118#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/silkstore/util_test.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="257">
+          <caret line="20" column="45" selection-start-line="20" selection-start-column="45" selection-end-line="20" selection-end-column="45" />
+          <folding>
+            <element signature="e#45#62#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/Library/Caches/CLion2018.3/.remote/10.214.224.234_22/35a6fde8-5917-4294-ade2-e2c7a789216c/usr/include/c++/5/bits/unique_ptr.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="194">
+          <caret line="561" column="13" selection-start-line="561" selection-start-column="6" selection-end-line="561" selection-end-column="13" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/db/dbformat.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="150">
+          <caret line="165" column="12" selection-start-line="165" selection-start-column="12" selection-end-line="165" selection-end-column="12" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/include/leveldb/slice.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="85">
+          <caret line="28" selection-start-line="28" selection-end-line="28" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/table/block.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="160">
+          <caret line="127" selection-start-line="127" selection-end-line="127" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/table/iterator.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="148">
+          <caret line="25" column="9" selection-start-line="25" selection-start-column="9" selection-end-line="25" selection-end-column="9" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/design/design.md">
       <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
         <state split_layout="SPLIT">
-          <first_editor relative-caret-position="527">
-            <caret line="85" column="8" lean-forward="true" selection-start-line="85" selection-start-column="8" selection-end-line="85" selection-end-column="8" />
+          <first_editor relative-caret-position="137">
+            <caret line="40" column="7" selection-start-line="40" selection-start-column="7" selection-end-line="40" selection-end-column="7" />
           </first_editor>
           <second_editor />
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/util/coding.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="304">
+          <caret line="104" selection-start-line="104" selection-end-line="104" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/include/leveldb/iterator.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="18">
+          <caret line="23" column="21" selection-start-line="23" selection-start-column="21" selection-end-line="23" selection-end-column="21" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/db/snapshot.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="183">
+          <caret line="72" column="7" selection-start-line="72" selection-start-column="7" selection-end-line="72" selection-end-column="7" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/db/write_batch.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="18">
+          <caret line="28" column="12" selection-start-line="28" selection-start-column="12" selection-end-line="28" selection-end-column="12" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/include/leveldb/write_batch.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="107">
+          <caret line="33" column="8" selection-start-line="33" selection-start-column="8" selection-end-line="33" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/util/env.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="174">
+          <caret line="30" column="5" selection-start-line="30" selection-start-column="5" selection-end-line="30" selection-end-column="5" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/util/crc32c.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="18">
+          <caret line="339" column="41" selection-start-line="339" selection-start-column="41" selection-end-line="339" selection-end-column="41" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/db/log_writer.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="147">
+          <caret line="94" column="28" selection-start-line="94" selection-start-column="28" selection-end-line="94" selection-end-column="28" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/include/leveldb/db.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="157">
+          <caret line="133" column="26" selection-start-line="133" selection-start-column="15" selection-end-line="133" selection-end-column="26" />
+          <folding>
+            <element signature="e#294#313#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/port/port_stdcxx.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="152">
+          <caret line="90" selection-start-line="90" selection-end-line="90" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/db/skiplist.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="132">
+          <caret line="267" selection-start-line="267" selection-end-line="267" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/silkstore/leaf_store.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="164">
+          <caret line="44" column="10" selection-start-line="44" selection-start-column="4" selection-end-line="44" selection-end-column="10" />
+          <folding>
+            <element signature="e#109#127#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/util/coding.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="157">
+          <caret line="74" column="5" selection-start-line="74" selection-start-column="5" selection-end-line="74" selection-end-column="5" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/table/format.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="170">
+          <caret line="85" column="7" selection-start-line="85" selection-start-column="7" selection-end-line="85" selection-end-column="7" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/table/block.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="108">
+          <caret line="16" column="6" selection-start-line="16" selection-start-column="6" selection-end-line="16" selection-end-column="6" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/table/format.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="300">
+          <caret line="77" selection-start-line="77" selection-end-line="77" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/silkstore/silkstore_iter.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="154">
+          <caret line="132" selection-start-line="132" selection-end-line="132" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/table/two_level_iterator.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="154">
+          <caret line="164" selection-start-line="164" selection-end-line="164" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/silkstore/minirun.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="151">
+          <caret line="23" column="4" selection-start-line="23" selection-start-column="4" selection-end-line="23" selection-end-column="4" />
+          <folding>
+            <element signature="e#46#63#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/silkstore/minirun.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="189">
+          <caret line="36" selection-start-line="36" selection-end-line="36" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/db/memtable.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="171">
+          <caret line="28" column="7" selection-start-line="28" selection-start-column="7" selection-end-line="28" selection-end-column="7" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/silkstore/silkstore_impl.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-1905">
+          <caret line="101" column="20" lean-forward="true" selection-start-line="101" selection-start-column="20" selection-end-line="101" selection-end-column="20" />
+          <folding>
+            <element signature="e#322#338#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/silkstore/minirun_builder.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-2841">
+          <caret line="126" column="24" selection-start-line="126" selection-start-column="7" selection-end-line="126" selection-end-column="24" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/silkstore/silkstore_iter.cc">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/silkstore/util.cpp">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1044">
+          <caret line="60" column="9" lean-forward="true" selection-start-line="60" selection-start-column="9" selection-end-line="60" selection-end-column="9" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/silkstore/segment_builder.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="229">
+          <caret line="106" column="31" selection-start-line="106" selection-start-column="31" selection-end-line="106" selection-end-column="31" />
+          <folding>
+            <element signature="e#46#63#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/db/memtable.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="140">
+          <caret line="30" column="17" selection-start-line="30" selection-start-column="17" selection-end-line="30" selection-end-column="17" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/silkstore/segment.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="170">
+          <caret line="169" column="19" selection-start-line="169" selection-start-column="19" selection-end-line="169" selection-end-column="19" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/silkstore/segment.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="222">
+          <caret line="293" column="38" selection-start-line="293" selection-start-column="38" selection-end-line="293" selection-end-column="38" />
+          <folding>
+            <element signature="e#46#76#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/include/leveldb/env.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="160">
+          <caret line="181" column="16" selection-start-line="181" selection-start-column="2" selection-end-line="181" selection-end-column="16" />
+          <folding>
+            <element signature="e#702#721#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/util/env_posix.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="278">
+          <caret line="130" column="24" selection-start-line="130" selection-start-column="24" selection-end-line="130" selection-end-column="24" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/silkstore/leaf_store.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="162">
+          <caret line="23" column="35" selection-start-line="23" selection-start-column="35" selection-end-line="23" selection-end-column="35" />
+          <folding>
+            <element signature="e#48#65#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/include/leveldb/options.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="160">
+          <caret line="192" column="7" selection-start-line="192" selection-start-column="7" selection-end-line="192" selection-end-column="7" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/util/options.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="289">
+          <caret line="40" column="35" selection-start-line="40" selection-start-column="35" selection-end-line="40" selection-end-column="35" />
+          <folding>
+            <element signature="e#217#245#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/silkstore/silkstore_test.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="132">
+          <caret line="263" column="34" selection-start-line="263" selection-start-column="34" selection-end-line="263" selection-end-column="34" />
+          <folding>
+            <element signature="e#263#286#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/util/bloom.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="290">
+          <caret line="92" column="1" lean-forward="true" selection-start-line="92" selection-start-column="1" selection-end-line="92" selection-end-column="1" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/db/db_impl.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="427">
+          <caret line="1431" column="29" lean-forward="true" selection-start-line="1431" selection-start-column="29" selection-end-line="1431" selection-end-column="29" />
+          <folding>
+            <element signature="e#217#240#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/db/db_bench.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="459">
+          <caret line="265" column="3" lean-forward="true" selection-start-line="265" selection-start-column="3" selection-end-line="265" selection-end-column="3" />
+          <folding>
+            <element signature="e#217#235#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/silkstore/silkstore_impl.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="308">
+          <caret line="1374" column="25" lean-forward="true" selection-start-line="1374" selection-start-column="25" selection-end-line="1374" selection-end-column="25" />
+          <folding>
+            <element signature="e#46#63#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+  </component>
+  <component name="masterDetails">
+    <states>
+      <state key="ScopeChooserConfigurable.UI">
+        <settings>
+          <splitter-proportions>
+            <option name="proportions">
+              <list>
+                <option value="0.2" />
+              </list>
+            </option>
+          </splitter-proportions>
+        </settings>
+      </state>
+    </states>
   </component>
 </project>
