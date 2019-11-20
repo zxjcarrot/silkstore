@@ -128,6 +128,8 @@ static int FLAGS_num_ops_in_mixed_wl = 0;
 
 static bool FLAGS_enable_leaf_read_opt = false;
 
+static bool FLAGS_enable_memtable_bloom = false;
+
 namespace leveldb {
 
 namespace {
@@ -942,6 +944,7 @@ class Benchmark {
       options.reuse_logs = FLAGS_reuse_logs;
       options.compression = kNoCompression;
       options.enable_leaf_read_opt = FLAGS_enable_leaf_read_opt;
+      options.use_memtable_dynamic_filter = FLAGS_enable_memtable_bloom;
       options.maximum_segments_storage_size = (static_cast<int64_t>(kKeySize + FLAGS_value_size) * FLAGS_table_size) * 2;
       Status s;
       if (FLAGS_db_type == std::string("silkstore")) {
@@ -1040,7 +1043,7 @@ class Benchmark {
     ReadOptions options;
     std::string value;
     int found = 0;
-    char msg[100];
+    char msg[1000];
     std::string num_leaves;
     db_->GetProperty("silkstore.num_leaves", &num_leaves);
     snprintf(msg, sizeof(msg), "num_leaves %s", num_leaves.c_str());
@@ -1059,7 +1062,9 @@ class Benchmark {
     db_->GetProperty("silkstore.runs_searched", &runs_searched);
     std::string leaf_avg_num_runs;
     db_->GetProperty("silkstore.leaf_avg_num_runs", &leaf_avg_num_runs);
-    snprintf(msg, sizeof(msg), "(%d of %d found), runs_searched %s leaf_avg_num_runs %s", found, num_, runs_searched.c_str(), leaf_avg_num_runs.c_str());
+    std::string searches_in_memtable;
+    db_->GetProperty("silkstore.searches_in_memtable", &searches_in_memtable);
+    snprintf(msg, sizeof(msg), "(%d of %d found), runs_searched %s leaf_avg_num_runs %s searches_in_memtable %s ", found, num_, runs_searched.c_str(), leaf_avg_num_runs.c_str(), searches_in_memtable.c_str());
     thread->stats.AddMessage(msg);
 
     //std::string leaf_stats;
@@ -1282,6 +1287,8 @@ int main(int argc, char** argv) {
       FLAGS_num_ops_in_mixed_wl = std::stoi(argv[i] + 22);
     } else if (strncmp(argv[i], "--enable_leaf_read_opt=", 23) == 0) {
       FLAGS_enable_leaf_read_opt = std::stoi(argv[i] + 23);
+    } else if (strncmp(argv[i], "--enable_memtable_bloom=", 24) == 0) {
+      FLAGS_enable_memtable_bloom = std::stoi(argv[i] + 24);
     } else if (strncmp(argv[i], "--table_size=", 13) == 0) {
       FLAGS_table_size = std::stoi(argv[i] + 13);
     } else {

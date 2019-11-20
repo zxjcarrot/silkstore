@@ -411,6 +411,7 @@ Status SilkStore::MakeRoomForWrite(bool force) {
             log_ = new log::Writer(lfile);
             imm_ = mem_;
             has_imm_.Release_Store(imm_);
+            size_t old_memtable_capacity = memtable_capacity_;
             size_t new_memtable_capacity =
                     (memtable_capacity_ + segment_manager_->ApproximateSize()) / options_.memtbl_to_L0_ratio;
             new_memtable_capacity = std::min(options_.max_memtbl_capacity,
@@ -418,7 +419,14 @@ Status SilkStore::MakeRoomForWrite(bool force) {
             Log(options_.info_log, "new memtable capacity %llu\n", new_memtable_capacity);
             memtable_capacity_ = new_memtable_capacity;
             allowed_num_leaves = std::ceil(new_memtable_capacity / (options_.storage_block_size + 0.0));
-            mem_ = new MemTable(internal_comparator_);
+            DynamicFilter * dynamic_filter = nullptr;
+            if (options_.use_memtable_dynamic_filter) {
+                size_t imm_num_entries = imm_->NumEntries();
+                size_t new_memtable_capacity_num_entries = imm_num_entries * std::ceil(new_memtable_capacity / (old_memtable_capacity + 0.0));
+                assert(new_memtable_capacity_num_entries);
+                dynamic_filter = NewDynamicFilterBloom(new_memtable_capacity_num_entries, options_.memtable_dynamic_filter_fp_rate);
+            }
+            mem_ = new MemTable(internal_comparator_, dynamic_filter);
             mem_->Ref();
             force = false;   // Do not force another compaction if have room
             MaybeScheduleCompaction();
@@ -602,6 +610,13 @@ bool SilkStore::GetProperty(const Slice &property, std::string *value) {
         }
         *value = std::to_string(run_cnt / (leaf_cnt + 0.001));
         return true;
+    } else if (property.ToString() == "silkstore.searches_in_memtable") {
+        MutexLock g(&mutex_);
+        size_t res = mem_->Searches();
+        if (imm_) {
+            res += imm_->Searches();
+        }
+        *value = std::to_string(res);
     }
     return false;
 }

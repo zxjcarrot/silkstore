@@ -189,6 +189,15 @@ struct LEVELDB_EXPORT Options {
   // garbage collection is initiated.
   // Default: 0.9
   double segments_storage_size_gc_threshold;
+
+  // Whether to deploy filter for memtable
+  // Default: false
+  bool use_memtable_dynamic_filter;
+
+  // Error rate of the memtable dynamic filter.
+  // Only used when use_memtable_dynamic_filter is set.
+  // Default: 0.1
+  double memtable_dynamic_filter_fp_rate;
   // Create an Options object with default values for all fields.
   Options();
 };

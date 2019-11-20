@@ -66,6 +66,20 @@ class LEVELDB_EXPORT FilterPolicy {
 // trailing spaces in keys.
 LEVELDB_EXPORT const FilterPolicy* NewBloomFilterPolicy(int bits_per_key);
 
+
+class LEVELDB_EXPORT DynamicFilter {
+public:
+    virtual ~DynamicFilter();
+
+    // Add a key to this filter
+    virtual void Add(const Slice key) = 0;
+
+    // Check if the key is possibily in the filter
+    virtual bool KeyMayMatch(const Slice& key) = 0;
+};
+
+LEVELDB_EXPORT DynamicFilter* NewDynamicFilterBloom(int entries, double fp_rate);
+
 }  // namespace leveldb
 
 #endif  // STORAGE_LEVELDB_INCLUDE_FILTER_POLICY_H_

@@ -10,6 +10,7 @@
 #include "db/dbformat.h"
 #include "db/skiplist.h"
 #include "util/arena.h"
+#include "leveldb/filter_policy.h"
 
 namespace leveldb {
 
@@ -20,7 +21,7 @@ class MemTable {
  public:
   // MemTables are reference counted.  The initial reference count
   // is zero and the caller must call Ref() at least once.
-  explicit MemTable(const InternalKeyComparator& comparator);
+  explicit MemTable(const InternalKeyComparator& comparator, DynamicFilter * dynamic_filter = nullptr);
 
   // Increase reference count.
   void Ref() { ++refs_; }
@@ -59,6 +60,8 @@ class MemTable {
   // Else, return false.
   bool Get(const LookupKey& key, std::string* value, Status* s);
 
+  size_t NumEntries() const;
+  size_t Searches() const;
  private:
   ~MemTable();  // Private since only Unref() should be used to delete it
 
@@ -76,7 +79,9 @@ class MemTable {
   int refs_;
   Arena arena_;
   Table table_;
-
+  size_t num_entries_;
+  size_t searches_;
+  DynamicFilter * dynamic_filter;
   // No copying allowed
   MemTable(const MemTable&);
   void operator=(const MemTable&);

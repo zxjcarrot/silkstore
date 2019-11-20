@@ -18,16 +18,24 @@ static Slice GetLengthPrefixedSlice(const char* data) {
   return Slice(p, len);
 }
 
-MemTable::MemTable(const InternalKeyComparator& cmp)
+MemTable::MemTable(const InternalKeyComparator& cmp, DynamicFilter * dynamic_filter)
     : comparator_(cmp),
       refs_(0),
-      table_(comparator_, &arena_) {
+      table_(comparator_, &arena_),
+      num_entries_(0),
+      searches_(0),
+      dynamic_filter(dynamic_filter) {
 }
 
 MemTable::~MemTable() {
   assert(refs_ == 0);
+  if (dynamic_filter) {
+    delete dynamic_filter;
+    dynamic_filter = nullptr;
+  }
 }
-
+size_t MemTable::Searches() const { return searches_; }
+size_t MemTable::NumEntries() const { return num_entries_; }
 size_t MemTable::ApproximateMemoryUsage() { return arena_.MemoryUsage(); }
 
 int MemTable::KeyComparator::operator()(const char* aptr, const char* bptr)
@@ -103,9 +111,15 @@ void MemTable::Add(SequenceNumber s, ValueType type,
   memcpy(p, value.data(), val_size);
   assert(p + val_size == buf + encoded_len);
   table_.Insert(buf);
+  if (dynamic_filter)
+    dynamic_filter->Add(key);
+  ++num_entries_;
 }
 
 bool MemTable::Get(const LookupKey& key, std::string* value, Status* s) {
+  if (dynamic_filter && !dynamic_filter->KeyMayMatch(key.user_key()))
+    return false;
+  ++searches_;
   Slice memkey = key.memtable_key();
   Table::Iterator iter(&table_);
   iter.Seek(memkey.data());
