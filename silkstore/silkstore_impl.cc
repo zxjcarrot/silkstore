@@ -617,6 +617,26 @@ bool SilkStore::GetProperty(const Slice &property, std::string *value) {
             res += imm_->Searches();
         }
         *value = std::to_string(res);
+    } else if (property.ToString() == "silkstore.stats") {
+        char buf[1000];
+        snprintf(buf, sizeof(buf), "\nbytes read %lu\n"
+                                   "bytes written %lu\n"
+                                   "bytes read gc %lu\n"
+                                   "bytes read gc %lu (Actual)\n"
+                                   "bytes written gc %lu\n"
+                                   "# miniruns checked for gc %lu\n"
+                                   "# miniruns queried for gc %lu\n",
+                                   stats_.bytes_read,
+                                   stats_.bytes_written,
+                                   stats_.gc_bytes_read_unopt,
+                                   stats_.gc_bytes_read,
+                                   stats_.gc_bytes_written,
+                                   stats_.gc_miniruns_total,
+                                   stats_.gc_miniruns_queried);
+        *value = buf;
+        std::string leaf_index_stats;
+        leaf_index_->GetProperty("leveldb.stats", &leaf_index_stats);
+        value->append(leaf_index_stats);
     }
     return false;
 }
@@ -980,10 +1000,13 @@ Status SilkStore::GarbageCollectSegment(Segment *seg, GroupedSegmentAppender &ap
     Status s;
     size_t copied = 0;
     size_t segment_size = seg->SegmentSize();
-
+    stats_.AddGCUnoptStats(segment_size);
     seg->ForEachRun([&, this](int run_no, MiniRunHandle run_handle, size_t run_size, bool valid) {
-        if (valid == false) // Skip invalidated runs
+        if (valid == false) { // Skip invalidated runs
+            stats_.AddGCMiniRunStats(0, 1);
             return false;
+        }
+        stats_.AddGCMiniRunStats(1, 1);
         // We take out the first key of the last block in the run to query leaf_index for validness
         MiniRun *run;
         Block index_block(BlockContents({Slice(), false, false}));
@@ -996,6 +1019,9 @@ Status SilkStore::GarbageCollectSegment(Segment *seg, GroupedSegmentAppender &ap
         std::unique_ptr<Iterator> block_it(
                 run->NewIteratorForOneBlock({}, last_block_handle));
 
+        // Read the last block aligned by options_.block_size
+        stats_.AddGCStats(std::max(options_.block_size, last_block_handle.size()), 0);
+        stats_.Add(std::max(options_.block_size, last_block_handle.size()), 0);
         block_it->SeekToFirst();
         if (block_it->Valid()) {
             auto internal_key = block_it->key();
@@ -1037,12 +1063,17 @@ Status SilkStore::GarbageCollectSegment(Segment *seg, GroupedSegmentAppender &ap
             s = CopyMinirunRun(leaf_key, leaf_index_entry, run_idx_in_index_entry, seg_builder);
             if (!s.ok()) // error, early exit
                 return true;
+            // Read from the old leaf
+            // Write to the new leaf
+            stats_.Add(leaf_index_entry.GetLeafDataSize(), leaf_index_entry.GetLeafDataSize());
+            stats_.AddGCStats(leaf_index_entry.GetLeafDataSize(), leaf_index_entry.GetLeafDataSize());
             copied += run_size;
         }
         return false;
     });
     //if (copied)
-        fprintf(stderr, "Copied %f%% the data from segment %d\n", (copied+0.0)/segment_size * 100, seg->SegmentId());
+        //
+        // fprintf(stderr, "Copied %f%% the data from segment %d\n", (copied+0.0)/segment_size * 100, seg->SegmentId());
     return Status::OK();
 }
 
@@ -1271,10 +1302,14 @@ Status SilkStore::MakeRoomInLeafLayer(WriteBatch & leaf_index_wb) {
 
                 leaf_index_wb.Put(leaf_max_key, new_leaf_index_entry.GetRawData());
             }
+            // Read all data and merge them, then write all out
+            stats_.Add(leaf_index_entry.GetLeafDataSize(), leaf_index_entry.GetLeafDataSize());
         }
+        // Record the data read from leaf_index as well
+        stats_.Add(iit->key().size() + iit->value().size(), 0);
         iit->Next();
     }
-    fprintf(stderr, "avg runsize %d, self compactions %d, num_splits %d, num_leaves %d, memtable size %lu, segments size %lu\n", imm_->ApproximateMemoryUsage() / (num_leaves == 0 ? 1 : num_leaves), self_compaction, num_splits, (num_leaves == 0 ? 1 : num_leaves), imm_->ApproximateMemoryUsage(), segment_manager_->ApproximateSize());
+    //fprintf(stderr, "avg runsize %d, self compactions %d, num_splits %d, num_leaves %d, memtable size %lu, segments size %lu\n", imm_->ApproximateMemoryUsage() / (num_leaves == 0 ? 1 : num_leaves), self_compaction, num_splits, (num_leaves == 0 ? 1 : num_leaves), imm_->ApproximateMemoryUsage(), segment_manager_->ApproximateSize());
     return s;
 }
 
@@ -1319,6 +1354,9 @@ Status SilkStore::DoCompactionWork(WriteBatch & leaf_index_wb) {
         Slice leaf_max_key = next_leaf_max_key;
         LeafIndexEntry leaf_index_entry(next_leaf_index_value);
 
+        // Record the data read from leaf_index as well
+        stats_.Add(iit->key().size() + iit->value().size(), 0);
+
         SegmentBuilder* seg_builder = nullptr;
         s = grouped_segment_appender.MakeRoomForGroupAndGetBuilder(0, &seg_builder);
         if (!s.ok())
@@ -1349,8 +1387,13 @@ Status SilkStore::DoCompactionWork(WriteBatch & leaf_index_wb) {
                 assert(seg_builder->RunStarted());
             }
             seg_builder->Add(mit->key(), mit->value());
-            mit->Next();
+
+            // Reading data from memtable costs no read io.
+            // Record the write to segment.
+            stats_.Add(0, mit->key().size() + mit->value().size());
             ++minirun_key_cnt;
+
+            mit->Next();
         }
 
         if (seg_builder->RunStarted()) {
@@ -1432,7 +1475,11 @@ Status SilkStore::DoCompactionWork(WriteBatch & leaf_index_wb) {
             leaf_max_key = parsed_internal_key.user_key;
 
             seg_builder->Add(imm_internal_key, mit->value());
+            // Reading data from memtable costs no read io.
+            // Record the write to segment.
+            stats_.Add(0, mit->key().size() + mit->value().size());
             ++minirun_key_cnt;
+
             mit->Next();
         }
         uint32_t run_no;

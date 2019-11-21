@@ -981,8 +981,8 @@ class Benchmark {
       thread->stats.AddMessage(msg);
     }
     std::string msg;
-    db_->GetProperty(std::string(FLAGS_db_type) + ".stats", &msg);
-    thread->stats.AddMessage(msg);
+    //db_->GetProperty(std::string(FLAGS_db_type) + ".stats", &msg);
+    //thread->stats.AddMessage(msg);
 
     RandomGenerator gen;
     WriteBatch batch;
@@ -1005,7 +1005,6 @@ class Benchmark {
       }
     }
     thread->stats.AddBytes(bytes);
-    msg.clear();
     db_->GetProperty(std::string(FLAGS_db_type) + ".stats", &msg);
     thread->stats.AddMessage(msg);
   }

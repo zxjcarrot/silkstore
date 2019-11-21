@@ -224,6 +224,38 @@ private:
     // silkstore stuff
     LeafStore * leaf_store_ = nullptr;
     LeafStatStore stat_store_;
+
+    struct MergeStats {
+        size_t bytes_written = 0;
+        size_t bytes_read = 0;
+
+        size_t gc_bytes_written = 0;
+        size_t gc_bytes_read = 0;
+        size_t gc_bytes_read_unopt = 0;
+
+        // # miniruns queried in leaf_index_ for validness during GC.
+        size_t gc_miniruns_queried;
+        // # miniruns in total checked during GC.
+        // gc_miniruns_total - gc_miniruns_queried => # miniruns that are skipped by
+        size_t gc_miniruns_total;
+        void Add(size_t read, size_t written) {
+            bytes_written += written;
+            bytes_read += read;
+        }
+
+        void AddGCUnoptStats(size_t read) {
+            gc_bytes_read_unopt += read;
+        }
+
+        void AddGCStats(size_t read, size_t written) {
+            gc_bytes_written += written;
+            gc_bytes_read  += read;
+        }
+        void AddGCMiniRunStats(size_t miniruns_queried, size_t miniruns_total) {
+            gc_miniruns_queried += miniruns_queried;
+            gc_miniruns_total += miniruns_total;
+        }
+    }stats_;
 };
 
 Status DestroyDB(const std::string& dbname, const Options& options);
