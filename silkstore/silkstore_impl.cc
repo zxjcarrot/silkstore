@@ -740,7 +740,7 @@ public:
     // Make sure the segment that is being built by a group has enough space.
     // If not, finish off the old segment and create a new segment.
     // Return the builder of the designated group.
-    Status MakeRoomForGroupAndGetBuilder(uint32_t group_id, SegmentBuilder **builder_ptr) {
+    Status MakeRoomForGroupAndGetBuilder(uint32_t group_id, SegmentBuilder **builder_ptr, bool & switched_segment) {
         assert(group_id >= 0 && group_id < builders.size());
         if (builders[group_id] != nullptr && builders[group_id]->FileSize() < options.segment_file_size_thresh) {
             // Segment of the group is in good shape, return its builder directly.
@@ -762,6 +762,7 @@ public:
         if (!s.ok()) {
             return s;
         }
+        switched_segment = true;
         *builder_ptr = builders[group_id] = new_builder.release();
         return Status::OK();
     }
@@ -991,8 +992,6 @@ Status SilkStore::CopyMinirunRun(Slice leaf_max_key, LeafIndexEntry &leaf_index_
     if (!s.ok())
         return s;
     return leaf_index_->Put({}, leaf_max_key, new_leaf_index_entry.GetRawData());
-    //leaf_index_wb.insert(std::make_pair(.ToString(), new_leaf_index_entry.GetRawData().ToString()));
-    //return s;
 }
 
 Status SilkStore::GarbageCollectSegment(Segment *seg, GroupedSegmentAppender &appender) {
@@ -1055,7 +1054,8 @@ Status SilkStore::GarbageCollectSegment(Segment *seg, GroupedSegmentAppender &ap
                 return false;
 
             SegmentBuilder *seg_builder;
-            s = appender.MakeRoomForGroupAndGetBuilder(0, &seg_builder);
+            bool switched_segment = false;
+            s = appender.MakeRoomForGroupAndGetBuilder(0, &seg_builder, switched_segment);
             if (!s.ok()) // error, early exit
                 return true;
             // Copy the entire minirun to the other segment file and update leaf_index accordingly
@@ -1124,7 +1124,6 @@ Status SilkStore::OptimizeLeaf() {
     struct HeapItem {
         double read_hotness;
         std::shared_ptr<std::string> leaf_max_key;
-        //std::shared_ptr<std::string> leaf_index_entry_payload;
         bool operator<(const HeapItem & rhs) const {
             return read_hotness < rhs.read_hotness;
         }
@@ -1211,6 +1210,7 @@ Status SilkStore::OptimizeLeaf() {
     return s;
 }
 
+constexpr size_t kLeafIndexWriteBufferMaxSize = 2 * 1024 * 1024;
 
 Status SilkStore::MakeRoomInLeafLayer(WriteBatch & leaf_index_wb) {
     SequenceNumber seq_num = max_sequence_;
@@ -1236,9 +1236,21 @@ Status SilkStore::MakeRoomInLeafLayer(WriteBatch & leaf_index_wb) {
         LeafIndexEntry leaf_index_entry(iit->value());
 
         SegmentBuilder* seg_builder = nullptr;
-        s = grouped_segment_appender.MakeRoomForGroupAndGetBuilder(0, &seg_builder);
+        bool switched_segment = false;
+        s = grouped_segment_appender.MakeRoomForGroupAndGetBuilder(0, &seg_builder, switched_segment);
         if (!s.ok())
             return s;
+
+        if (switched_segment && leaf_index_wb.ApproximateSize() > kLeafIndexWriteBufferMaxSize) {
+            // If all previous segments are built successfully and
+            // the leaf_index write buffer exceeds the threshold,
+            // write it down to leaf_index_ to keep the memory footprint small.
+            s = leaf_index_->Write({}, &leaf_index_wb);
+            if (!s.ok())
+                return s;
+            leaf_index_wb.Clear();
+        }
+
         uint32_t seg_id = seg_builder->SegmentId();
 
         int num_miniruns = leaf_index_entry.GetNumMiniRuns();
@@ -1268,12 +1280,8 @@ Status SilkStore::MakeRoomInLeafLayer(WriteBatch & leaf_index_wb) {
                     return s;
                 }
 
-
-                //leaf_index_entry.ForEachMiniRunIndexEntry([](const MiniRunIndexEntry &, uint32_t){return false;}, LeafIndexEntry::TraversalOrder::forward);
-
-                //Update the index entry for the second half leaf
+                //Update the index entries
                 // Second half
-                //s = leaf_index_->Put(WriteOptions{}, Slice(buf4), Slice(buf6));
                 leaf_index_wb.Put(Slice(buf3), Slice(buf5));
                 leaf_index_wb.Put(Slice(buf4), Slice(buf6));
                 if (!s.ok()) {
@@ -1319,7 +1327,6 @@ Status SilkStore::MakeRoomInLeafLayer(WriteBatch & leaf_index_wb) {
 
 static int num_compactions = 0;
 Status SilkStore::DoCompactionWork(WriteBatch & leaf_index_wb) {
-    SequenceNumber seq_num = max_sequence_;
     mutex_.Unlock();
     ReadOptions ro;
     ro.snapshot = leaf_index_->GetSnapshot();
@@ -1334,7 +1341,7 @@ Status SilkStore::DoCompactionWork(WriteBatch & leaf_index_wb) {
     iit->SeekToFirst();
     std::unique_ptr<Iterator> mit(imm_->NewIterator());
     mit->SeekToFirst();
-    std::string buf, buf2, buf3, buf4, buf5, buf6;
+    std::string buf, buf2;
     uint32_t run_no;
     Status s;
 
@@ -1357,9 +1364,21 @@ Status SilkStore::DoCompactionWork(WriteBatch & leaf_index_wb) {
         stats_.Add(iit->key().size() + iit->value().size(), 0);
 
         SegmentBuilder* seg_builder = nullptr;
-        s = grouped_segment_appender.MakeRoomForGroupAndGetBuilder(0, &seg_builder);
+        bool switched_segment = false;
+        s = grouped_segment_appender.MakeRoomForGroupAndGetBuilder(0, &seg_builder, switched_segment);
         if (!s.ok())
             return s;
+
+        if (switched_segment && leaf_index_wb.ApproximateSize() > kLeafIndexWriteBufferMaxSize) {
+            // If all previous segments are built successfully and
+            // the leaf_index write buffer exceeds the threshold,
+            // write it down to leaf_index_ to keep the memory footprint small.
+            s = leaf_index_->Write({}, &leaf_index_wb);
+            if (!s.ok())
+                return s;
+            leaf_index_wb.Clear();
+        }
+
         uint32_t seg_id = seg_builder->SegmentId();
 
 
@@ -1413,20 +1432,17 @@ Status SilkStore::DoCompactionWork(WriteBatch & leaf_index_wb) {
 
             // Update the leaf index entry
             LeafIndexEntry new_leaf_index_entry;
-            //leaf_index_entry.ForEachMiniRunIndexEntry([](const MiniRunIndexEntry &, uint32_t){return false;}, LeafIndexEntry::TraversalOrder::forward);
             LeafIndexEntryBuilder::AppendMiniRunIndexEntry(leaf_index_entry, new_minirun_index_entry, &buf2,
                                                            &new_leaf_index_entry);
-            //new_leaf_index_entry.ForEachMiniRunIndexEntry([](const MiniRunIndexEntry &, uint32_t){return false;}, LeafIndexEntry::TraversalOrder::forward);
+
             assert(leaf_index_entry.GetNumMiniRuns() + 1 == new_leaf_index_entry.GetNumMiniRuns());
             // Write out the updated entry to leaf index
-            //s = leaf_index_->Put(WriteOptions{}, leaf_max_key, new_leaf_index_entry.GetRawData());
             leaf_index_wb.Put(leaf_max_key, new_leaf_index_entry.GetRawData());
             stat_store_.UpdateLeafNumRuns(leaf_max_key.ToString(), new_leaf_index_entry.GetNumMiniRuns());
         } else {
             // Memtable has no keys intersected with this leaf
             if (leaf_index_entry.Empty()) {
                 // If the leaf became empty due to self-compaction or split, remove it from the leaf index
-                //leaf_index_->Delete(WriteOptions{}, leaf_max_key);
                 leaf_index_wb.Delete(leaf_max_key);
                 --num_leaves;
                 stat_store_.DeleteLeaf(leaf_max_key.ToString());
@@ -1440,17 +1456,27 @@ Status SilkStore::DoCompactionWork(WriteBatch & leaf_index_wb) {
             next_leaf_index_value = iit->value();
         }
     }
-
+    // Memtable has keys that are greater than all the keys in leaf_index_.
+    // In this case, partition the rest of memtable contents into leaves each no more than options_.leaf_datasize_thresh bytes in size.
     while (s.ok() && mit->Valid()) {
         std::string buf, buf2;
         SegmentBuilder* seg_builder = nullptr;
-        s = grouped_segment_appender.MakeRoomForGroupAndGetBuilder(0, &seg_builder);
+        bool switched_segment = false;
+        s = grouped_segment_appender.MakeRoomForGroupAndGetBuilder(0, &seg_builder, switched_segment);
         if (!s.ok())
             return s;
+        if (switched_segment && leaf_index_wb.ApproximateSize() > kLeafIndexWriteBufferMaxSize) {
+            // If all previous segments are built successfully and
+            // the leaf_index write buffer exceeds the threshold,
+            // write it down to leaf_index_ to keep the memory footprint small.
+            s = leaf_index_->Write({}, &leaf_index_wb);
+            if (!s.ok())
+                return s;
+            leaf_index_wb.Clear();
+        }
+
         uint32_t seg_id = seg_builder->SegmentId();
 
-        // Memtable has keys that are greater than all the keys in leaf_index_
-        // In this case, create new leaves whose runs store no more than options_.leaf_datasize_thresh bytes of data each.
         assert(seg_builder->RunStarted() == false);
         s = seg_builder->StartMiniRun();
         if (!s.ok()) {
@@ -1494,8 +1520,6 @@ Status SilkStore::DoCompactionWork(WriteBatch & leaf_index_wb) {
         LeafIndexEntry new_leaf_index_entry;
         LeafIndexEntryBuilder::AppendMiniRunIndexEntry(LeafIndexEntry{}, minirun_index_entry, &buf2,
                                                        &new_leaf_index_entry);
-        //new_leaf_index_entry.ForEachMiniRunIndexEntry([](const MiniRunIndexEntry &, uint32_t){return false;}, LeafIndexEntry::TraversalOrder::forward);
-        //s = leaf_index_->Put(WriteOptions{}, leaf_max_key, new_leaf_index_entry.GetRawData());
         leaf_index_wb.Put(leaf_max_key, new_leaf_index_entry.GetRawData());
         ++num_leaves;
         stat_store_.NewLeaf(leaf_max_key.ToString());
@@ -1522,12 +1546,15 @@ void SilkStore::BackgroundCompaction() {
         bg_error_ = s;
         return;
     }
-    s = leaf_index_->Write({}, &leaf_index_wb);
-    if (!s.ok()) {
-        bg_error_ = s;
-        Log(options_.info_log, "leaf_index_->Write failed: %s\n", s.ToString().c_str());
-        return;
+    if (leaf_index_wb.ApproximateSize()) {
+        s = leaf_index_->Write({}, &leaf_index_wb);
+        if (!s.ok()) {
+            bg_error_ = s;
+            Log(options_.info_log, "leaf_index_->Write failed: %s\n", s.ToString().c_str());
+            return;
+        }
     }
+
     leaf_index_wb.Clear();
     s = DoCompactionWork(leaf_index_wb);
 
@@ -1536,7 +1563,9 @@ void SilkStore::BackgroundCompaction() {
         bg_error_ = s;
     } else {
         mutex_.Unlock();
-        s = leaf_index_->Write({}, &leaf_index_wb);
+        if (leaf_index_wb.ApproximateSize()) {
+            s = leaf_index_->Write({}, &leaf_index_wb);
+        }
         mutex_.Lock();
         if (!s.ok()) {
             bg_error_ = s;
