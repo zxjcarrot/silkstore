@@ -127,7 +127,7 @@ class LeafIndexEntryBuilder {
  */
 class LeafStatStore {
 public:
-    static constexpr int read_interval_in_micros = 5000000; // five seconds
+    static constexpr int read_interval_in_micros = 10000000; // ten seconds
     static constexpr double read_hotness_exp_smooth_factor = 0.8;
     static constexpr double write_hotness_exp_smooth_factor = 0.8;
 
@@ -138,11 +138,12 @@ public:
         double read_hotness;
         long long last_write_time_in_s;
         long long reads_in_last_interval;
+        int num_runs;
     };
 
     void NewLeaf(const std::string & key) {
         MutexLock g(&lock);
-        m[key] = {-1, 0, 0, (long long)Env::Default()->NowMicros() / 1000000, 0};
+        m[key] = {-1, 0, 0, (long long)Env::Default()->NowMicros() / 1000000, 0, 0};
     }
 
     void IncrementLeafReads(const std::string & leaf_key) {
@@ -175,6 +176,15 @@ public:
         m.erase(leaf_key);
     }
 
+    void UpdateLeafNumRuns(const std::string & leaf_key, int num_runs) {
+        MutexLock g(&lock);
+        auto it = m.find(leaf_key);
+        if (it == m.end()) {
+            return;
+        }
+        it->second.num_runs = num_runs;
+    }
+
     void UpdateWriteHotness(const std::string &leaf_key, int writes) {
         MutexLock g(&lock);
         auto it = m.find(leaf_key);
@@ -200,13 +210,14 @@ public:
         MutexLock g(&lock);
         if (m.find(leaf_key) == m.end())
             return;
-        m[first_half_key] = {-1, 0, 0, (long long)Env::Default()->NowMicros() / 1000000, 0};
+        m[first_half_key] = {-1, 0, 0, (long long)Env::Default()->NowMicros() / 1000000, 0, 1};
         LeafStat & first_half_leaf_stat = m[first_half_key];
         LeafStat & second_half_leaf_stat = m[leaf_key];
         first_half_leaf_stat.write_hotness = second_half_leaf_stat.write_hotness /= 2;
         first_half_leaf_stat.reads_in_last_interval = second_half_leaf_stat.reads_in_last_interval /= 2;
         first_half_leaf_stat.group_id = second_half_leaf_stat.group_id;
         first_half_leaf_stat.last_write_time_in_s = second_half_leaf_stat.last_write_time_in_s;
+        second_half_leaf_stat.num_runs = 1;
     }
 
 
@@ -214,6 +225,13 @@ public:
         MutexLock g(&lock);
         for (auto & kv : m) {
             UpdateReadHotnessForOneLeaf(kv.second);
+        }
+    }
+
+    void ForEachLeaf(std::function<void(const std::string &, const LeafStat &)> processor) {
+        MutexLock g(&lock);
+        for (auto & kv : m) {
+            processor(kv.first, kv.second);
         }
     }
 

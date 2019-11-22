@@ -546,6 +546,8 @@ class Benchmark {
             FLAGS_value_size,
             static_cast<int>(FLAGS_value_size * FLAGS_compression_ratio + 0.5));
     fprintf(stdout, "Entries:    %d\n", FLAGS_table_size);
+    fprintf(stdout, "Reads:      %d\n", FLAGS_reads);
+    fprintf(stdout, "Num:        %d\n", FLAGS_num);
     fprintf(stdout, "RawSize:    %.1f MB (estimated)\n",
             ((static_cast<int64_t>(kKeySize + FLAGS_value_size) * FLAGS_table_size)
              / 1048576.0));
@@ -1301,7 +1303,11 @@ int main(int argc, char** argv) {
   // Choose a location for the test database if none given with --db=<path>
   if (FLAGS_db == nullptr) {
       //leveldb::g_env->GetTestDirectory(&default_db_path);
-      default_db_path = "/mnt/900p/dbbench";
+      default_db_path = "/mnt/toshiba/dbbench";
+      if (FLAGS_db_type == std::string("silkstore"))
+          default_db_path += "/silkstore";
+      else
+          default_db_path += "/leveldb";
       FLAGS_db = default_db_path.c_str();
   }
 
