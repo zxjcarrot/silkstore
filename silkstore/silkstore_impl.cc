@@ -1071,8 +1071,7 @@ Status SilkStore::GarbageCollectSegment(Segment *seg, GroupedSegmentAppender &ap
         return false;
     });
     //if (copied)
-        //
-         fprintf(stderr, "Copied %f%% the data from segment %d\n", (copied+0.0)/segment_size * 100, seg->SegmentId());
+        // fprintf(stderr, "Copied %f%% the data from segment %d\n", (copied+0.0)/segment_size * 100, seg->SegmentId());
     return Status::OK();
 }
 
@@ -1131,6 +1130,8 @@ Status SilkStore::OptimizeLeaf() {
 
 
     auto leaf_index_snapshot = leaf_index_->GetSnapshot();
+    DeferCode c([this, &leaf_index_snapshot](){ leaf_index_->ReleaseSnapshot(leaf_index_snapshot); });
+
     // Maintain a min-heap of kOptimizationK elements based on read-hotness
     std::priority_queue<HeapItem> candidate_heap;
 
@@ -1210,7 +1211,7 @@ Status SilkStore::OptimizeLeaf() {
     return s;
 }
 
-constexpr size_t kLeafIndexWriteBufferMaxSize = 2 * 1024 * 1024;
+constexpr size_t kLeafIndexWriteBufferMaxSize = std::numeric_limits<size_t>::max();
 
 Status SilkStore::MakeRoomInLeafLayer(WriteBatch & leaf_index_wb) {
     SequenceNumber seq_num = max_sequence_;

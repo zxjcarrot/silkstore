@@ -1303,11 +1303,11 @@ int main(int argc, char** argv) {
   // Choose a location for the test database if none given with --db=<path>
   if (FLAGS_db == nullptr) {
       //leveldb::g_env->GetTestDirectory(&default_db_path);
-      default_db_path = "/mnt/toshiba/dbbench";
-      if (FLAGS_db_type == std::string("silkstore"))
-          default_db_path += "/silkstore";
-      else
-          default_db_path += "/leveldb";
+      default_db_path = "/mnt/900p/dbbench";
+//      if (FLAGS_db_type == std::string("silkstore"))
+//          default_db_path += "/silkstore";
+//      else
+//          default_db_path += "/leveldb";
       FLAGS_db = default_db_path.c_str();
   }
 

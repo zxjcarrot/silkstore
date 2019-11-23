@@ -62,6 +62,7 @@ std::vector<int> KMeansSegmenter::classify(const std::vector<double> & data_poin
         if (centroids_changed == false)
             break;
         centroids = new_centroids;
+        ++steps;
     }
     return groups;
 }
