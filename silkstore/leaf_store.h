@@ -127,7 +127,7 @@ class LeafIndexEntryBuilder {
  */
 class LeafStatStore {
 public:
-    static constexpr int read_interval_in_micros = 10000000; // ten seconds
+    static constexpr int read_interval_in_micros = 5000000; // ten seconds
     static constexpr double read_hotness_exp_smooth_factor = 0.8;
     static constexpr double write_hotness_exp_smooth_factor = 0.8;
 
@@ -182,7 +182,8 @@ public:
         if (it == m.end()) {
             return;
         }
-        it->second.num_runs = num_runs;
+        LeafStat & stat = it->second;
+        stat.num_runs = num_runs;
     }
 
     void UpdateWriteHotness(const std::string &leaf_key, int writes) {
@@ -210,8 +211,7 @@ public:
         MutexLock g(&lock);
         if (m.find(leaf_key) == m.end())
             return;
-        m[first_half_key] = {-1, 0, 0, (long long)Env::Default()->NowMicros() / 1000000, 0, 1};
-        LeafStat & first_half_leaf_stat = m[first_half_key];
+        LeafStat & first_half_leaf_stat = m[first_half_key] = {-1, 0, 0, (long long)Env::Default()->NowMicros() / 1000000, 0, 1};
         LeafStat & second_half_leaf_stat = m[leaf_key];
         first_half_leaf_stat.write_hotness = second_half_leaf_stat.write_hotness /= 2;
         first_half_leaf_stat.reads_in_last_interval = second_half_leaf_stat.reads_in_last_interval /= 2;

@@ -113,7 +113,7 @@ class Segment {
 
     void operator=(const Segment &) = delete;
 
-    void SetNewSegmentFile(RandomAccessFile* file);
+    RandomAccessFile* SetNewSegmentFile(RandomAccessFile* file);
 
     Status OpenMiniRun(int run_no, Block &index_block, MiniRun **run);
 
@@ -172,6 +172,8 @@ class SegmentManager {
     Status InvalidateSegmentRun(uint32_t seg_id, uint32_t run_no);
 
     Status RenameSegment(uint32_t seg_id, const std::string target_filepath);
+
+    void ForEachSegment(std::function<void(Segment* seg)> processor);
  private:
     struct Rep;
     Rep *rep_;

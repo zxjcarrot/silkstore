@@ -558,27 +558,34 @@ public:
 };
 
 TEST(DBTest, RandomKeyTest) {
-    static const int kNum = 1000000;
+    static const int kNumOps = 30000000;
+    static const int kNumKVs = 10000000;
+    static const int kValueSize = 100;
+    Options options;
+    options.filter_policy = NewBloomFilterPolicy(10);
+    options.maximum_segments_storage_size = kNumKVs * 116 * 2.0;
+    DestroyAndReopen(&options);
+
     Random rnd(0);
-    std::vector<std::string> keys(kNum);
-    for (int i = 0; i < kNum; ++i) {
+    std::vector<std::string> keys(kNumKVs);
+    for (int i = 0; i < kNumKVs; ++i) {
         keys[i] = RandomNumberKey(&rnd);
     }
     std::map<std::string, std::string> m;
-    for (int i = 0; i < kNum; i++) {
-        std::string key = keys[i];
-        std::string value = RandomString(&rnd, 100);
+    for (int i = 0; i < kNumOps; i++) {
+        std::string key = keys[i % kNumKVs];
+        std::string value = RandomString(&rnd, kValueSize);
         //std::string value = std::to_string(i);
 
         ASSERT_OK(Put(key, value));
         m[key] = value;
 
         for (int j = 0; j < 1; ++j) {
-            int idx = std::min(3, i);
+            int idx = std::min(3, i) % kNumKVs;
             auto res = Get(keys[idx]);
             auto ans = m[keys[idx]];
             if (res != ans) {
-                fprintf(stderr, "Key %s has wrong value %s, correct value %s, last inserted key %s %d\n", keys[idx].c_str(), res.c_str(), ans.c_str(), keys[i].c_str(), i);
+                fprintf(stderr, "Key %s has wrong value %s, correct value %s, last inserted key %s %d\n", keys[idx].c_str(), res.c_str(), ans.c_str(), keys[i % kNumKVs].c_str(), i);
                 res = Get(keys[idx]);
             }
             ASSERT_EQ(res, ans);
@@ -587,11 +594,12 @@ TEST(DBTest, RandomKeyTest) {
     }
 
     Reopen(nullptr);
-    for (int i = 0; i < kNum; ++i) {
-        auto res = Get(keys[i]);
-        auto ans = m[keys[i]];
+    for (int i = 0; i < kNumOps; ++i) {
+        int idx = i % kNumKVs;
+        auto res = Get(keys[idx]);
+        auto ans = m[keys[idx]];
         if (res != ans) {
-            fprintf(stderr, "Key %s has wrong value %s, correct value %s, last inserted key %s %d\n", keys[i].c_str(), res.c_str(), ans.c_str(), keys[i].c_str(), i);
+            fprintf(stderr, "Key %s has wrong value %s, correct value %s, last inserted key %s %d\n", keys[idx].c_str(), res.c_str(), ans.c_str(), keys[i % kNumKVs].c_str(), i);
             res = Get(keys[i]);
         }
         ASSERT_EQ(res, ans);

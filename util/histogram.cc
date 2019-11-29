@@ -104,7 +104,7 @@ double Histogram::StandardDeviation() const {
 
 std::string Histogram::ToString() const {
   std::string r;
-  char buf[200];
+  char buf[2000];
   snprintf(buf, sizeof(buf),
            "Count: %.0f  Average: %.4f  StdDev: %.2f\n",
            num_, Average(), StandardDeviation());

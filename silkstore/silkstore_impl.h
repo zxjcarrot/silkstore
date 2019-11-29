@@ -87,7 +87,9 @@ class SilkStore : public DB {
 
     Status CopyMinirunRun(Slice leaf_max_key, LeafIndexEntry & index_entry, uint32_t run_idx_in_index_entry, SegmentBuilder * seg_builder);
     Status GarbageCollectSegment(Segment * seg, GroupedSegmentAppender & appender);
-    void GarbageCollect();
+    int GarbageCollect();
+
+    std::string SegmentsSpaceUtilityHistogram();
 
     void Destroy();
 
@@ -206,14 +208,14 @@ private:
 
     Status OptimizeLeaf();
 
-    Status MakeRoomInLeafLayer(WriteBatch & leaf_index_wb);
+    Status MakeRoomInLeafLayer(bool force = false);
 
     static void BGWork(void* db);
     void BackgroundCall();
 
     Status InvalidateLeafRuns(const LeafIndexEntry & leaf_index_entry, size_t start_run, size_t end_run);
     LeafIndexEntry
-    CompactLeaf(SegmentBuilder *seg_builder, uint32_t seg_no, const LeafIndexEntry &leaf_index_entry, Status &s,std::string *buf, uint32_t start_minirun_no, uint32_t end_minirun_no);
+    CompactLeaf(SegmentBuilder *seg_builder, uint32_t seg_no, const LeafIndexEntry &leaf_index_entry, Status &s,std::string *buf, uint32_t start_minirun_no, uint32_t end_minirun_no, const Snapshot * leaf_index_snap=nullptr);
 
     std::pair<uint32_t, uint32_t> ChooseLeafCompactionRunRange(const LeafIndexEntry &leaf_index_entry);
 
@@ -239,8 +241,8 @@ private:
         // gc_miniruns_total - gc_miniruns_queried => # miniruns that are skipped by
         size_t gc_miniruns_total;
         void Add(size_t read, size_t written) {
-            bytes_written += written;
             bytes_read += read;
+            bytes_written += written;
         }
 
         void AddGCUnoptStats(size_t read) {
@@ -254,6 +256,17 @@ private:
         void AddGCMiniRunStats(size_t miniruns_queried, size_t miniruns_total) {
             gc_miniruns_queried += miniruns_queried;
             gc_miniruns_total += miniruns_total;
+        }
+
+        size_t time_spent_compaction = 0;
+        size_t time_spent_gc = 0;
+
+        void AddTimeCompaction(size_t t) {
+            time_spent_compaction += t;
+        }
+
+        void AddTimeGC(size_t t) {
+            time_spent_gc += t;
         }
     }stats_;
 };

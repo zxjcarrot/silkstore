@@ -144,7 +144,8 @@ Status SegmentBuilder::Finish() {
     r->status = r->file->Append(buf);
     r->file->Flush();
 
-    return Env::Default()->RenameFile(r->src_segment_filepath, r->target_segment_filepath);
+    return r->segment_mgr->RenameSegment(r->seg_id, r->target_segment_filepath);
+    //return Env::Default()->RenameFile(r->src_segment_filepath, r->target_segment_filepath);
 }
 
 uint64_t SegmentBuilder::NumEntries() const {

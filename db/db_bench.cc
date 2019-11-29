@@ -130,6 +130,9 @@ static bool FLAGS_enable_leaf_read_opt = false;
 
 static bool FLAGS_enable_memtable_bloom = false;
 
+// Ratio of the capacity of the log and the dataset
+static double FLAGS_log_dataset_ratio = 2.0;
+
 namespace leveldb {
 
 namespace {
@@ -200,9 +203,15 @@ class Stats {
   double last_op_finish_;
   Histogram hist_;
   std::string message_;
-
+  bool report_current = false;
+  double last_current_report = 0;
+  int done_since_last_current_report = 0;
  public:
   Stats() { Start(); }
+
+  void EnableReportCurrent() {
+      report_current = true;
+  }
 
   void Start() {
     next_report_ = 100;
@@ -260,6 +269,16 @@ class Stats {
       else                            next_report_ += 100000;
       fprintf(stderr, "... finished %d ops%30s\r", done_, "");
       fflush(stderr);
+    }
+    if (report_current) {
+        ++done_since_last_current_report;
+        double elapsed = (g_env->NowMicros() - last_current_report);
+        if (elapsed > 5 * 1e6) {
+            double latency = elapsed / done_since_last_current_report;
+            fprintf(stdout, "%.2f\n", latency);
+            done_since_last_current_report = 0;
+            last_current_report = g_env->NowMicros();
+        }
     }
   }
 
@@ -338,6 +357,7 @@ public:
     virtual void work(ThreadState * thread)=0;
     virtual void fillone(ThreadState * thread)=0;
     virtual ~Workload(){}
+    virtual size_t size()const=0;
     int Weight() { return weight; }
 protected:
     int tid;
@@ -383,6 +403,7 @@ public:
         thread->stats.FinishedSingleOp();
     }
 
+    size_t size() const override { return table_size; }
 protected:
     DB * db_;
     char key[100];
@@ -522,7 +543,13 @@ public:
         }
         return new WorkloadMixture(workloads, new WeightedRandomWorkloadSelector(workloads));
     }
-
+    size_t Size() const {
+        size_t s = 0;
+        for (size_t i = 0; i < workloads.size(); ++i) {
+            s += workloads[i]->size();
+        }
+        return s;
+    }
 };
 
 class Benchmark {
@@ -554,7 +581,8 @@ class Benchmark {
     fprintf(stdout, "FileSize:   %.1f MB (estimated)\n",
             (((kKeySize + FLAGS_value_size * FLAGS_compression_ratio) * FLAGS_table_size)
              / 1048576.0));
-      fprintf(stdout, "DBImplType:  %s\n", FLAGS_db_type);
+    fprintf(stdout, "DBImplType:  %s\n", FLAGS_db_type);
+    fprintf(stdout, "LogRatio:  %f\n", FLAGS_log_dataset_ratio);
     PrintWarnings();
     fprintf(stdout, "------------------------------------------------\n");
   }
@@ -947,7 +975,9 @@ class Benchmark {
       options.compression = kNoCompression;
       options.enable_leaf_read_opt = FLAGS_enable_leaf_read_opt;
       options.use_memtable_dynamic_filter = FLAGS_enable_memtable_bloom;
-      options.maximum_segments_storage_size = (static_cast<int64_t>(kKeySize + FLAGS_value_size) * FLAGS_table_size) * 2;
+      options.maximum_segments_storage_size = (static_cast<int64_t>(kKeySize + FLAGS_value_size) * FLAGS_table_size) * FLAGS_log_dataset_ratio;
+      fprintf(stderr, "maximum_segments_storage_size %lu bytes\n", options.maximum_segments_storage_size);
+
       Status s;
       if (FLAGS_db_type == std::string("silkstore")) {
         DB::OpenSilkStore(options, FLAGS_db, &db_);
@@ -1009,6 +1039,12 @@ class Benchmark {
     thread->stats.AddBytes(bytes);
     db_->GetProperty(std::string(FLAGS_db_type) + ".stats", &msg);
     thread->stats.AddMessage(msg);
+    std::string time_spent_gc;
+    db_->GetProperty("silkstore.gcstat", &time_spent_gc);
+    thread->stats.AddMessage(time_spent_gc);
+    std::string segment_util;
+    db_->GetProperty("silkstore.segment_util", &segment_util);
+    thread->stats.AddMessage(segment_util);
   }
 
   void ReadSequential(ThreadState* thread) {
@@ -1190,21 +1226,35 @@ class Benchmark {
   void MixedWorkload(ThreadState * thread) {
       WorkloadMixture * mixture = WorkloadMixture::ParseFromWorkloadSpec(db_, FLAGS_mixed_wl_spec);
       assert(mixture);
+      char msg[1000];
+      thread->stats.EnableReportCurrent();
       for (int i = 0; i < FLAGS_num_ops_in_mixed_wl; ++i) {
         mixture->work(thread);
       }
+      std::string runs_searched;
+      db_->GetProperty("silkstore.runs_searched", &runs_searched);
+      std::string leaf_avg_num_runs;
+      db_->GetProperty("silkstore.leaf_avg_num_runs", &leaf_avg_num_runs);
+      std::string searches_in_memtable;
+      db_->GetProperty("silkstore.searches_in_memtable", &searches_in_memtable);
+      snprintf(msg, sizeof(msg), "%d ops, runs_searched %s leaf_avg_num_runs %s searches_in_memtable %s ", FLAGS_num_ops_in_mixed_wl, runs_searched.c_str(), leaf_avg_num_runs.c_str(), searches_in_memtable.c_str());
+      thread->stats.AddMessage(msg);
   }
 
     void MixedWorkloadFillRandom(ThreadState * thread) {
         WorkloadMixture * mixture = WorkloadMixture::ParseFromWorkloadSpec(db_, FLAGS_mixed_wl_spec);
         assert(mixture);
-        for (int i = 0; i < FLAGS_num_ops_in_mixed_wl; ++i) {
+        size_t table_total_size = mixture->Size();
+        fprintf(stderr, "table_total_size %lu\n", table_total_size);
+        for (int i = 0; i < FLAGS_table_size; ++i) {
             mixture->fill(thread);
         }
-        char msg[100];
+        char msg[3000];
         std::string num_leaves;
         db_->GetProperty("silkstore.num_leaves", &num_leaves);
-        snprintf(msg, sizeof(msg), "num_leaves %s", num_leaves.c_str());
+        std::string segment_util;
+        db_->GetProperty("silkstore.segment_util", &segment_util);
+        snprintf(msg, sizeof(msg), "num_leaves %s\n%s", num_leaves.c_str(), segment_util.c_str());
         thread->stats.AddMessage(msg);
     }
 
@@ -1292,6 +1342,8 @@ int main(int argc, char** argv) {
       FLAGS_enable_memtable_bloom = std::stoi(argv[i] + 24);
     } else if (strncmp(argv[i], "--table_size=", 13) == 0) {
       FLAGS_table_size = std::stoi(argv[i] + 13);
+    } else if (strncmp(argv[i], "--log_dataset_ratio=", 20) == 0) {
+      FLAGS_log_dataset_ratio = std::stof(argv[i] + 20);
     } else {
       fprintf(stderr, "Invalid flag '%s'\n", argv[i]);
       exit(1);
@@ -1303,7 +1355,8 @@ int main(int argc, char** argv) {
   // Choose a location for the test database if none given with --db=<path>
   if (FLAGS_db == nullptr) {
       //leveldb::g_env->GetTestDirectory(&default_db_path);
-      default_db_path = "/mnt/900p/dbbench";
+      //default_db_path = "/mnt/900p/dbbench";
+      default_db_path = "/mnt/toshiba/dbbench";
 //      if (FLAGS_db_type == std::string("silkstore"))
 //          default_db_path += "/silkstore";
 //      else

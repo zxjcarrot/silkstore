@@ -268,6 +268,7 @@ if(LEVELDB_BUILD_TESTS)
         "${PROJECT_SOURCE_DIR}/util/testharness.h"
         "${PROJECT_SOURCE_DIR}/util/testutil.cc"
         "${PROJECT_SOURCE_DIR}/util/testutil.h"
+            "${PROJECT_SOURCE_DIR}/util/histogram.cc"
 
         "${test_file}"
     )

@@ -105,10 +105,12 @@ Status Segment::Open(const Options &options, uint32_t segment_id,
     return Status::OK();
 }
 
-void Segment::SetNewSegmentFile(RandomAccessFile* file) {
+RandomAccessFile* Segment::SetNewSegmentFile(RandomAccessFile* file) {
     Rep *r = rep_;
     assert(NumRef() == 0);
+    auto old_file = r->file;
     r->file = file;
+    return old_file;
 }
 
 Status Segment::OpenMiniRun(int run_no, Block & index_block, MiniRun ** run) {
@@ -180,21 +182,41 @@ static bool GetSegmentFileInfo(const std::string & filename, uint32_t & seg_id) 
 }
 
 
-std::vector<Segment *> SegmentManager::GetMostInvalidatedSegments(int K) {
+void SegmentManager::ForEachSegment(std::function<void(Segment* seg)> processor) {
     Rep *r = rep_;
-    std::lock_guard<std::mutex> g(r->mutex);
+    std::unordered_set<uint32_t> segment_ids;
+    {
+        std::lock_guard<std::mutex> g(r->mutex);
+        for (auto kv : r->segment_filepaths) {
+
+            if (kv.second.find("tmpseg.") == std::string::npos) {
+                segment_ids.insert(kv.first);
+            }
+        }
+    }
+    for (auto segment_id : segment_ids) {
+        Segment * seg;
+        Status s = OpenSegment(segment_id, &seg);
+        if (s.ok()) {
+            processor(seg);
+            seg->UnRef();
+        }
+    }
+}
+
+std::vector<Segment *> SegmentManager::GetMostInvalidatedSegments(int K) {
     struct QueueNode {
         Segment *seg;
-        uint64_t invalidated_data_size;
+        double invalidated_data_ratio;
 
         bool operator<(const QueueNode &rhs) const {
-            return invalidated_data_size > rhs.invalidated_data_size;
+            return invalidated_data_ratio > rhs.invalidated_data_ratio;
         }
     };
     std::priority_queue<QueueNode> q;
 
-    for (auto kv : r->segments) {
-        Segment *seg = kv.second;
+
+    ForEachSegment([&, this](Segment *seg){
         uint64_t invalidated_data_size = 0;
         seg->ForEachRun([&invalidated_data_size](int, MiniRunHandle, size_t size, bool valid) {
             if (valid == false) {
@@ -202,17 +224,20 @@ std::vector<Segment *> SegmentManager::GetMostInvalidatedSegments(int K) {
             }
             return false;
         });
-        if (invalidated_data_size == 0)
-            continue;
+        double invalidated_data_ratio = invalidated_data_size / (seg->SegmentSize());
+        if (abs(invalidated_data_ratio - 0) < 1e-7)
+            return false;
         if (q.size() < K) {
-            q.push({seg, invalidated_data_size});
+            q.push({seg, invalidated_data_ratio});
         } else {
-            if (q.empty() == false && q.top().invalidated_data_size < invalidated_data_size) {
+            if (q.empty() == false && q.top().invalidated_data_ratio < invalidated_data_ratio) {
                 q.pop();
-                q.push({seg, invalidated_data_size});
+                q.push({seg, invalidated_data_ratio});
             }
         }
-    }
+        return false;
+    });
+
     std::vector<Segment *> res;
     while (!q.empty()) {
         res.push_back(q.top().seg);
@@ -242,7 +267,7 @@ Status SegmentManager::NewSegmentBuilder(uint32_t *seg_id, std::unique_ptr<Segme
     }
     seg_builder_ptr.reset(new SegmentBuilder(r->options, src_segment_filepath, target_segment_filepath, wfile, exp_seg_id, this));
     r->seg_id_max = *seg_id = exp_seg_id;
-    r->segment_filepaths[*seg_id] = target_segment_filepath;
+    r->segment_filepaths[*seg_id] = src_segment_filepath;
     return Status::OK();
 }
 
@@ -256,6 +281,7 @@ Status SegmentManager::InvalidateSegmentRun(uint32_t seg_id, uint32_t run_no) {
     DropSegment(seg);
     return s;
 }
+
 
 
 Status SegmentManager::RenameSegment(uint32_t seg_id, const std::string target_filepath) {
@@ -273,7 +299,7 @@ Status SegmentManager::RenameSegment(uint32_t seg_id, const std::string target_f
     if (segment_it == r->segments.end())
         return s;
     Segment *segment = segment_it->second;
-    // Wait for all the olde readers to drop reference to the current segment
+    // Wait for all the old readers to drop reference to the current segment
     // New readers will be blocked by r->mutex
     while (segment->NumRef())
         Env::Default()->SleepForMicroseconds(10);
@@ -283,7 +309,8 @@ Status SegmentManager::RenameSegment(uint32_t seg_id, const std::string target_f
     if (!s.ok()) {
         return s;
     }
-    segment->SetNewSegmentFile(rfile);
+    RandomAccessFile * old_file = segment->SetNewSegmentFile(rfile);
+    delete old_file;
     return Status::OK();
 }
 
@@ -302,7 +329,7 @@ size_t SegmentManager::ApproximateSize() {
             Log(r->options.info_log, "Failed getting size of file %s\n", filepath.c_str());
         }
     }
-    Log(r->options.info_log, "Approximate size of all segment files %lu\n", size);
+    //Log(r->options.info_log, "Approximate size of all segment files %lu\n", size);
     return size;
 }
 
