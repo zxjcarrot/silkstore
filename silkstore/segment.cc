@@ -310,7 +310,8 @@ Status SegmentManager::RenameSegment(uint32_t seg_id, const std::string target_f
         return s;
     }
     RandomAccessFile * old_file = segment->SetNewSegmentFile(rfile);
-    delete old_file;
+    //FIXME: fix this leak
+    //delete old_file;
     return Status::OK();
 }
 

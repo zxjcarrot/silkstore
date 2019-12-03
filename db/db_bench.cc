@@ -583,6 +583,7 @@ class Benchmark {
              / 1048576.0));
     fprintf(stdout, "DBImplType:  %s\n", FLAGS_db_type);
     fprintf(stdout, "LogRatio:  %f\n", FLAGS_log_dataset_ratio);
+    fprintf(stdout, "DBPath: %s\n", FLAGS_db);
     PrintWarnings();
     fprintf(stdout, "------------------------------------------------\n");
   }
@@ -663,11 +664,14 @@ class Benchmark {
       }
     }
     if (!FLAGS_use_existing_db) {
+        Status s;
       if (FLAGS_db_type == std::string("silkstore")) {
-        leveldb::silkstore::DestroyDB(FLAGS_db, Options());
+        s = leveldb::silkstore::DestroyDB(FLAGS_db, Options());
       } else {
-        leveldb::DestroyDB(FLAGS_db, Options());
+        s = leveldb::DestroyDB(FLAGS_db, Options());
       }
+      if (!s.ok())
+          fprintf(stderr, "DestroyDB failed: %s\n", s.ToString().c_str());
     }
   }
 
@@ -718,6 +722,9 @@ class Benchmark {
       } else if (name == Slice("fillrandom")) {
         fresh_db = true;
         method = &Benchmark::WriteRandom;
+      } else if (name == Slice("writeskewed")) {
+          fresh_db = true;
+          method = &Benchmark::WriteSkewed;
       } else if (name == Slice("overwrite")) {
         fresh_db = false;
         method = &Benchmark::WriteRandom;
@@ -1047,6 +1054,41 @@ class Benchmark {
     thread->stats.AddMessage(segment_util);
   }
 
+
+    void WriteSkewed(ThreadState* thread) {
+        RandomGenerator gen;
+        WriteBatch batch;
+        Status s;
+        std::string msg;
+        int64_t bytes = 0;
+        int max_log = ceil(std::log(FLAGS_table_size)/std::log(2));
+        for (int i = 0; i < num_; i += entries_per_batch_) {
+            batch.Clear();
+            for (int j = 0; j < entries_per_batch_; j++) {
+                const int k = thread->rand.Skewed(max_log);
+                char key[100];
+                snprintf(key, sizeof(key), "%016d", k);
+                batch.Put(key, gen.Generate(value_size_));
+                bytes += value_size_ + strlen(key);
+                thread->stats.FinishedSingleOp();
+            }
+            s = db_->Write(write_options_, &batch);
+            if (!s.ok()) {
+                fprintf(stderr, "put error: %s\n", s.ToString().c_str());
+                exit(1);
+            }
+        }
+        thread->stats.AddBytes(bytes);
+        db_->GetProperty(std::string(FLAGS_db_type) + ".stats", &msg);
+        thread->stats.AddMessage(msg);
+        std::string time_spent_gc;
+        db_->GetProperty("silkstore.gcstat", &time_spent_gc);
+        thread->stats.AddMessage(time_spent_gc);
+        std::string segment_util;
+        db_->GetProperty("silkstore.segment_util", &segment_util);
+        thread->stats.AddMessage(segment_util);
+    }
+
   void ReadSequential(ThreadState* thread) {
     Iterator* iter = db_->NewIterator(ReadOptions());
     int i = 0;
@@ -1237,8 +1279,17 @@ class Benchmark {
       db_->GetProperty("silkstore.leaf_avg_num_runs", &leaf_avg_num_runs);
       std::string searches_in_memtable;
       db_->GetProperty("silkstore.searches_in_memtable", &searches_in_memtable);
-      snprintf(msg, sizeof(msg), "%d ops, runs_searched %s leaf_avg_num_runs %s searches_in_memtable %s ", FLAGS_num_ops_in_mixed_wl, runs_searched.c_str(), leaf_avg_num_runs.c_str(), searches_in_memtable.c_str());
+      std::string num_leaves;
+      db_->GetProperty("silkstore.num_leaves", &num_leaves);
+      std::string segment_util;
+      db_->GetProperty("silkstore.segment_util", &segment_util);
+      std::string stats;
+      db_->GetProperty(std::string(FLAGS_db_type) + ".stats", &stats);
+      std::string time_spent_gc;
+      db_->GetProperty("silkstore.gcstat", &time_spent_gc);
+      snprintf(msg, sizeof(msg), "%d ops, runs_searched %s leaf_avg_num_runs %s searches_in_memtable %s num_leaves %s\n%s\n%s\n%s\n", FLAGS_num_ops_in_mixed_wl, runs_searched.c_str(), leaf_avg_num_runs.c_str(), searches_in_memtable.c_str(), num_leaves.c_str(), segment_util.c_str(), stats.c_str(), time_spent_gc.c_str());
       thread->stats.AddMessage(msg);
+
   }
 
     void MixedWorkloadFillRandom(ThreadState * thread) {
@@ -1254,7 +1305,11 @@ class Benchmark {
         db_->GetProperty("silkstore.num_leaves", &num_leaves);
         std::string segment_util;
         db_->GetProperty("silkstore.segment_util", &segment_util);
-        snprintf(msg, sizeof(msg), "num_leaves %s\n%s", num_leaves.c_str(), segment_util.c_str());
+        std::string stats;
+        db_->GetProperty(std::string(FLAGS_db_type) + ".stats", &stats);
+        std::string time_spent_gc;
+        db_->GetProperty("silkstore.gcstat", &time_spent_gc);
+        snprintf(msg, sizeof(msg), "num_leaves %s\n%s\n%s\n%s\n", num_leaves.c_str(), segment_util.c_str(), stats.c_str(), time_spent_gc.c_str());
         thread->stats.AddMessage(msg);
     }
 
@@ -1353,7 +1408,7 @@ int main(int argc, char** argv) {
   leveldb::g_env = leveldb::Env::Default();
 
   // Choose a location for the test database if none given with --db=<path>
-  if (FLAGS_db == nullptr) {
+  if (FLAGS_db== nullptr) {
       //leveldb::g_env->GetTestDirectory(&default_db_path);
       //default_db_path = "/mnt/900p/dbbench";
       default_db_path = "/mnt/toshiba/dbbench";

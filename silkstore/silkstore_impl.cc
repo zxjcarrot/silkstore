@@ -1257,7 +1257,7 @@ Status SilkStore::OptimizeLeaf() {
             return s;
         }
     }
-
+    WriteBatch leaf_index_wb;
     int compacted_runs = 0;
     // Now candidate_heap contains kOptimizationK leaves with largest read-hotness and ready for optimization
     while (!candidate_heap.empty()) {
@@ -1272,6 +1272,11 @@ Status SilkStore::OptimizeLeaf() {
             if (!s.ok()) {
                 return s;
             }
+            s = leaf_index_->Write(WriteOptions{}, &leaf_index_wb);
+            if (!s.ok()) {
+                return s;
+            }
+            leaf_index_wb.Clear();
         }
         HeapItem item = candidate_heap.top(); candidate_heap.pop();
         ReadOptions ropts;
@@ -1288,10 +1293,7 @@ Status SilkStore::OptimizeLeaf() {
         if (!s.ok()) {
             return s;
         }
-        s = leaf_index_->Put(WriteOptions{}, Slice(*item.leaf_max_key), new_index_entry.GetRawData());
-        if (!s.ok()) {
-            return s;
-        }
+        leaf_index_wb.Put(Slice(*item.leaf_max_key), new_index_entry.GetRawData());
         s = InvalidateLeafRuns(index_entry, 0, index_entry.GetNumMiniRuns() - 1);
         if (!s.ok()) {
             return s;
@@ -1303,6 +1305,9 @@ Status SilkStore::OptimizeLeaf() {
         fprintf(stderr, "Leaf Optimization compacted %d runs\n", compacted_runs);
     if (seg_builder.get()) {
         return seg_builder->Finish();
+    }
+    if (leaf_index_wb.ApproximateSize()) {
+        return leaf_index_->Write(WriteOptions{}, &leaf_index_wb);
     }
     return s;
 }
