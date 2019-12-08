@@ -7,13 +7,14 @@
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
 #include "silkstore/silkstore_iter.h"
+
 namespace leveldb {
 
 namespace silkstore {
 
-Iterator* NewDBIterator(
-        const Comparator* user_key_comparator,
-        Iterator* internal_iter,
+Iterator *NewDBIterator(
+        const Comparator *user_key_comparator,
+        Iterator *internal_iter,
         SequenceNumber sequence) {
     return new DBIter(user_key_comparator, internal_iter, sequence);
 }

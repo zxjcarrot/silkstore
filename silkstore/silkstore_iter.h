@@ -16,7 +16,7 @@ namespace silkstore {
 // combines multiple entries for the same userkey found in the DB
 // representation into a single entry while accounting for sequence
 // numbers, deletion markers, overwrites, etc.
-class DBIter: public Iterator {
+class DBIter : public Iterator {
 public:
     // Which direction is the iterator currently moving?
     // (1) When moving forward, the internal iterator is positioned at
@@ -28,17 +28,20 @@ public:
         kReverse
     };
 
-    DBIter(const Comparator* cmp, Iterator* iter, SequenceNumber s)
+    DBIter(const Comparator *cmp, Iterator *iter, SequenceNumber s)
             : user_comparator_(cmp),
               iter_(iter),
               sequence_(s),
               direction_(kForward),
               valid_(false) {
     }
+
     virtual ~DBIter() {
         delete iter_;
     }
+
     virtual bool Valid() const { return valid_; }
+
     virtual Slice key() const {
         assert(valid_);
         return (direction_ == kForward) ? ExtractUserKey(iter_->key()) : saved_key_;
@@ -53,6 +56,7 @@ public:
         assert(valid_);
         return (direction_ == kForward) ? iter_->value() : saved_value_;
     }
+
     virtual Status status() const {
         if (status_.ok()) {
             return iter_->status();
@@ -87,6 +91,7 @@ public:
 
         FindNextUserEntry(true, &saved_key_);
     }
+
     virtual void Prev() {
         assert(valid_);
 
@@ -113,7 +118,8 @@ public:
 
         FindPrevUserEntry();
     }
-    virtual void Seek(const Slice& target) {
+
+    virtual void Seek(const Slice &target) {
         direction_ = kForward;
         ClearSavedValue();
         saved_key_.clear();
@@ -147,7 +153,7 @@ public:
 
 
 private:
-    void FindNextUserEntry(bool skipping, std::string* skip) {
+    void FindNextUserEntry(bool skipping, std::string *skip) {
         // Loop until we hit an acceptable entry to yield
         assert(iter_->Valid());
         assert(direction_ == kForward);
@@ -221,7 +227,7 @@ private:
         }
     }
 
-    bool ParseKey(ParsedInternalKey* ikey) {
+    bool ParseKey(ParsedInternalKey *ikey) {
         Slice k = iter_->key();
 
         if (!ParseInternalKey(k, ikey)) {
@@ -233,7 +239,7 @@ private:
     }
 
 
-    inline void SaveKey(const Slice& k, std::string* dst) {
+    inline void SaveKey(const Slice &k, std::string *dst) {
         dst->assign(k.data(), k.size());
     }
 
@@ -246,8 +252,8 @@ private:
         }
     }
 
-    const Comparator* const user_comparator_;
-    Iterator* const iter_;
+    const Comparator *const user_comparator_;
+    Iterator *const iter_;
     SequenceNumber const sequence_;
 
     Status status_;
@@ -257,16 +263,17 @@ private:
     bool valid_;
 
     // No copying allowed
-    DBIter(const DBIter&);
-    void operator=(const DBIter&);
+    DBIter(const DBIter &);
+
+    void operator=(const DBIter &);
 };
 
 // Return a new iterator that converts internal keys (yielded by
 // "*internal_iter") that were live at the specified "sequence" number
 // into appropriate user keys.
-Iterator* NewDBIterator(
-        const Comparator* user_key_comparator,
-        Iterator* internal_iter,
+Iterator *NewDBIterator(
+        const Comparator *user_key_comparator,
+        Iterator *internal_iter,
         SequenceNumber sequence);
 
 }  // namespace silkstore

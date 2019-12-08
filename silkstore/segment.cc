@@ -105,7 +105,7 @@ Status Segment::Open(const Options &options, uint32_t segment_id,
     return Status::OK();
 }
 
-RandomAccessFile* Segment::SetNewSegmentFile(RandomAccessFile* file) {
+RandomAccessFile *Segment::SetNewSegmentFile(RandomAccessFile *file) {
     Rep *r = rep_;
     assert(NumRef() == 0);
     auto old_file = r->file;
@@ -113,13 +113,14 @@ RandomAccessFile* Segment::SetNewSegmentFile(RandomAccessFile* file) {
     return old_file;
 }
 
-Status Segment::OpenMiniRun(int run_no, Block & index_block, MiniRun ** run) {
+Status Segment::OpenMiniRun(int run_no, Block &index_block, MiniRun **run) {
     Rep *r = rep_;
     if (run_no < 0 || run_no >= r->run_handles.size())
         return Status::InvalidArgument("run_no is not in valid range");
     uint64_t run_offset = r->run_handles[run_no].run_start_pos;
     uint64_t run_size =
-            run_no + 1 == r->run_handles.size() ? r->file_size - run_offset : r->run_handles[run_no + 1].run_start_pos - run_offset;
+            run_no + 1 == r->run_handles.size() ? r->file_size - run_offset : r->run_handles[run_no + 1].run_start_pos -
+                                                                              run_offset;
 
     *run = new MiniRun(&r->options, r->file, run_offset, run_size, index_block);
     return Status::OK();
@@ -154,7 +155,7 @@ void Segment::ForEachRun(std::function<bool(int, MiniRunHandle, size_t, bool)> p
 
     for (size_t run_no = 0; run_no < r->run_handles.size(); ++run_no) {
         bool valid = invalidated_runs.find(run_no) == invalidated_runs.end();
-        size_t run_size = run_no == r->run_handles.size() - 1 ? r->file_size - r->run_handles[run_no].run_start_pos:
+        size_t run_size = run_no == r->run_handles.size() - 1 ? r->file_size - r->run_handles[run_no].run_start_pos :
                           r->run_handles[run_no + 1].run_start_pos - r->run_handles[run_no].run_start_pos;
         bool early_exit = processor(run_no, r->run_handles[run_no], run_size, valid);
         if (early_exit)
@@ -164,7 +165,7 @@ void Segment::ForEachRun(std::function<bool(int, MiniRunHandle, size_t, bool)> p
 
 struct SegmentManager::Rep {
     std::mutex mutex;
-    std::unordered_map<uint32_t, Segment*> segments;
+    std::unordered_map<uint32_t, Segment *> segments;
     std::unordered_map<uint32_t, std::string> segment_filepaths;
     uint32_t seg_id_max = 0;
     Options options;
@@ -172,7 +173,7 @@ struct SegmentManager::Rep {
     std::function<void()> gc_func;
 };
 
-static bool GetSegmentFileInfo(const std::string & filename, uint32_t & seg_id) {
+static bool GetSegmentFileInfo(const std::string &filename, uint32_t &seg_id) {
     if (filename.find("seg.") == 0) {
         std::string seg_id_str(filename.begin() + 4, filename.end());
         seg_id = std::stoi(seg_id_str);
@@ -182,7 +183,7 @@ static bool GetSegmentFileInfo(const std::string & filename, uint32_t & seg_id) 
 }
 
 
-void SegmentManager::ForEachSegment(std::function<void(Segment* seg)> processor) {
+void SegmentManager::ForEachSegment(std::function<void(Segment *seg)> processor) {
     Rep *r = rep_;
     std::unordered_set<uint32_t> segment_ids;
     {
@@ -195,7 +196,7 @@ void SegmentManager::ForEachSegment(std::function<void(Segment* seg)> processor)
         }
     }
     for (auto segment_id : segment_ids) {
-        Segment * seg;
+        Segment *seg;
         Status s = OpenSegment(segment_id, &seg);
         if (s.ok()) {
             processor(seg);
@@ -216,7 +217,7 @@ std::vector<Segment *> SegmentManager::GetMostInvalidatedSegments(int K) {
     std::priority_queue<QueueNode> q;
 
 
-    ForEachSegment([&, this](Segment *seg){
+    ForEachSegment([&, this](Segment *seg) {
         uint64_t invalidated_data_size = 0;
         seg->ForEachRun([&invalidated_data_size](int, MiniRunHandle, size_t size, bool valid) {
             if (valid == false) {
@@ -247,9 +248,10 @@ std::vector<Segment *> SegmentManager::GetMostInvalidatedSegments(int K) {
 }
 
 
-Status SegmentManager::NewSegmentBuilder(uint32_t *seg_id, std::unique_ptr<SegmentBuilder> &seg_builder_ptr, bool gc_on_segment_shortage) {
-    Rep*r = rep_;
-    Env* default_env = Env::Default();
+Status SegmentManager::NewSegmentBuilder(uint32_t *seg_id, std::unique_ptr<SegmentBuilder> &seg_builder_ptr,
+                                         bool gc_on_segment_shortage) {
+    Rep *r = rep_;
+    Env *default_env = Env::Default();
 
 //    while (gc_on_segment_shortage && r->options.maximum_segments_storage_size && ApproximateSize() >= r->options.segments_storage_size_gc_threshold * r->options.maximum_segments_storage_size) {
 ////        // TODO: initiate garbage collection
@@ -260,28 +262,28 @@ Status SegmentManager::NewSegmentBuilder(uint32_t *seg_id, std::unique_ptr<Segme
     uint32_t exp_seg_id = r->seg_id_max + 1;
     std::string src_segment_filepath = r->dbname + "/tmpseg." + std::to_string(exp_seg_id);
     std::string target_segment_filepath = r->dbname + "/seg." + std::to_string(exp_seg_id);
-    WritableFile* wfile = nullptr;
+    WritableFile *wfile = nullptr;
     Status s = default_env->NewAppendableFile(src_segment_filepath, &wfile);
     if (!s.ok()) {
         return s;
     }
-    seg_builder_ptr.reset(new SegmentBuilder(r->options, src_segment_filepath, target_segment_filepath, wfile, exp_seg_id, this));
+    seg_builder_ptr.reset(
+            new SegmentBuilder(r->options, src_segment_filepath, target_segment_filepath, wfile, exp_seg_id, this));
     r->seg_id_max = *seg_id = exp_seg_id;
     r->segment_filepaths[*seg_id] = src_segment_filepath;
     return Status::OK();
 }
 
 Status SegmentManager::InvalidateSegmentRun(uint32_t seg_id, uint32_t run_no) {
-    Segment * seg;
+    Segment *seg;
     Status s = OpenSegment(seg_id, &seg);
     if (!s.ok()) return s;
-    Rep* r = rep_;
+    Rep *r = rep_;
     std::lock_guard<std::mutex> g(r->mutex);
     s = seg->InvalidateMiniRun(run_no);
     DropSegment(seg);
     return s;
 }
-
 
 
 Status SegmentManager::RenameSegment(uint32_t seg_id, const std::string target_filepath) {
@@ -309,17 +311,17 @@ Status SegmentManager::RenameSegment(uint32_t seg_id, const std::string target_f
     if (!s.ok()) {
         return s;
     }
-    RandomAccessFile * old_file = segment->SetNewSegmentFile(rfile);
+    RandomAccessFile *old_file = segment->SetNewSegmentFile(rfile);
     //FIXME: fix this leak
     //delete old_file;
     return Status::OK();
 }
 
 size_t SegmentManager::ApproximateSize() {
-    Rep* r = rep_;
+    Rep *r = rep_;
     std::lock_guard<std::mutex> g(r->mutex);
     size_t size = 0;
-    Env* default_env = Env::Default();
+    Env *default_env = Env::Default();
     for (auto kv : r->segment_filepaths) {
         auto filepath = kv.second;
         uint64_t filesize;
@@ -336,7 +338,7 @@ size_t SegmentManager::ApproximateSize() {
 
 Status SegmentManager::RemoveSegment(uint32_t seg_id) {
     Status s;
-    Rep* r = rep_;
+    Rep *r = rep_;
     r->mutex.lock();
     auto filepath_it = r->segment_filepaths.find(seg_id);
     if (filepath_it == r->segment_filepaths.end()) {
@@ -347,10 +349,10 @@ Status SegmentManager::RemoveSegment(uint32_t seg_id) {
     auto it = r->segments.find(seg_id);
     if (it != r->segments.end()) {
         std::string filepath = filepath_it->second;
-        Segment* seg = it->second;
+        Segment *seg = it->second;
         r->segments.erase(seg_id);
         r->segment_filepaths.erase(seg_id);
-        Env* default_env = Env::Default();
+        Env *default_env = Env::Default();
         r->mutex.unlock();
         // Wait for all read references to this segment to drop
         while (seg->NumRef())
@@ -370,7 +372,7 @@ void SegmentManager::DropSegment(Segment *seg_ptr) {
 }
 
 Status SegmentManager::OpenSegment(uint32_t seg_id, Segment **seg_ptr) {
-    Rep* r = rep_;
+    Rep *r = rep_;
     r->mutex.lock();
     auto filepath_it = r->segment_filepaths.find(seg_id);
     if (filepath_it == r->segment_filepaths.end()) {
@@ -382,8 +384,8 @@ Status SegmentManager::OpenSegment(uint32_t seg_id, Segment **seg_ptr) {
     if (it == r->segments.end()) {
         std::string filepath = filepath_it->second;
         r->mutex.unlock();
-        Env* default_env = Env::Default();
-        RandomAccessFile*rfile;
+        Env *default_env = Env::Default();
+        RandomAccessFile *rfile;
         Status s = default_env->NewRandomAccessFile(filepath, &rfile);
         if (!s.ok()) {
             return s;
@@ -410,11 +412,11 @@ Status SegmentManager::OpenSegment(uint32_t seg_id, Segment **seg_ptr) {
     return Status::OK();
 }
 
-Status SegmentManager::OpenManager(const Options& options,
-                                   const std::string& dbname,
-                                   SegmentManager** manager_ptr,
+Status SegmentManager::OpenManager(const Options &options,
+                                   const std::string &dbname,
+                                   SegmentManager **manager_ptr,
                                    std::function<void()> gc_func) {
-    Env* default_env = Env::Default();
+    Env *default_env = Env::Default();
     if (default_env->FileExists(dbname) == false) {
         if (options.create_if_missing == false) {
             return Status::NotFound("dbname[" + dbname + "] not found");
@@ -424,7 +426,7 @@ Status SegmentManager::OpenManager(const Options& options,
             return s;
         }
     }
-    Rep* r = new Rep;
+    Rep *r = new Rep;
     r->options = options;
     r->dbname = dbname;
     r->gc_func = gc_func;

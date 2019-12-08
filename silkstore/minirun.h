@@ -26,19 +26,21 @@ class SegmentBuilder;
  * one or more leveldb data blocks. It is the unit of update to a leaf.
  */
 class MiniRun {
- public:
+public:
     // Returns a iterator ranging over the entire minirun
     Iterator *NewIterator(const ReadOptions &);
 
     MiniRun(const Options *options, RandomAccessFile *file,
             uint64_t off, uint64_t size, Block &index_block);
+
     static Iterator *BlockReader(void *, const ReadOptions &, const Slice &);
 
 
     // Returns a iterator ranging over a specific block in the run
-    Iterator* NewIteratorForOneBlock(const leveldb::ReadOptions &, BlockHandle handle);
+    Iterator *NewIteratorForOneBlock(const leveldb::ReadOptions &, BlockHandle handle);
+
 private:
-    const Options* options;
+    const Options *options;
     RandomAccessFile *file;
     uint64_t run_start_off; // offset in the file
     uint64_t run_size;
@@ -54,7 +56,7 @@ struct MiniRunHandle {
 };
 
 class MiniRunBuilder {
- public:
+public:
     // Create a builder that will store the contents of the minirun it is
     // building in *file starting at file_offset.  Does not close the file.  It is up to the
     // caller to close the file after calling Finish().
@@ -109,7 +111,8 @@ class MiniRunBuilder {
 
     // Size of the last block of the run being built
     BlockHandle GetLastBlockHandle() const;
- private:
+
+private:
     bool ok() const { return status().ok(); }
 
     void WriteBlock(BlockBuilder *block, BlockHandle *handle);

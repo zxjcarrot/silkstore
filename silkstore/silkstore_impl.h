@@ -30,7 +30,7 @@ namespace silkstore {
 class GroupedSegmentAppender;
 
 class SilkStore : public DB {
- public:
+public:
     SilkStore(const Options &options, const std::string &dbname);
 
     virtual ~SilkStore();
@@ -85,8 +85,11 @@ class SilkStore : public DB {
 
     void BackgroundCompaction();
 
-    Status CopyMinirunRun(Slice leaf_max_key, LeafIndexEntry & index_entry, uint32_t run_idx_in_index_entry, SegmentBuilder * seg_builder);
-    Status GarbageCollectSegment(Segment * seg, GroupedSegmentAppender & appender);
+    Status CopyMinirunRun(Slice leaf_max_key, LeafIndexEntry &index_entry, uint32_t run_idx_in_index_entry,
+                          SegmentBuilder *seg_builder);
+
+    Status GarbageCollectSegment(Segment *seg, GroupedSegmentAppender &appender);
+
     int GarbageCollect();
 
     std::string SegmentsSpaceUtilityHistogram();
@@ -135,7 +138,7 @@ private:
     size_t memtable_capacity_ GUARDED_BY(mutex_);;
     size_t allowed_num_leaves = 0;
     size_t num_leaves = 0;
-    SegmentManager* segment_manager_;
+    SegmentManager *segment_manager_;
     // Queue of writers.
     std::deque<Writer *> writers_ GUARDED_BY(mutex_);
     WriteBatch *tmp_batch_ GUARDED_BY(mutex_);
@@ -204,27 +207,33 @@ private:
 
     void MaybeScheduleCompaction();
 
-    Status DoCompactionWork(WriteBatch & leaf_index_wb);
+    Status DoCompactionWork(WriteBatch &leaf_index_wb);
 
     Status OptimizeLeaf();
 
     Status MakeRoomInLeafLayer(bool force = false);
 
-    static void BGWork(void* db);
+    static void BGWork(void *db);
+
     void BackgroundCall();
 
-    Status InvalidateLeafRuns(const LeafIndexEntry & leaf_index_entry, size_t start_run, size_t end_run);
+    Status InvalidateLeafRuns(const LeafIndexEntry &leaf_index_entry, size_t start_run, size_t end_run);
+
     LeafIndexEntry
-    CompactLeaf(SegmentBuilder *seg_builder, uint32_t seg_no, const LeafIndexEntry &leaf_index_entry, Status &s,std::string *buf, uint32_t start_minirun_no, uint32_t end_minirun_no, const Snapshot * leaf_index_snap=nullptr);
+    CompactLeaf(SegmentBuilder *seg_builder, uint32_t seg_no, const LeafIndexEntry &leaf_index_entry, Status &s,
+                std::string *buf, uint32_t start_minirun_no, uint32_t end_minirun_no,
+                const Snapshot *leaf_index_snap = nullptr);
 
     std::pair<uint32_t, uint32_t> ChooseLeafCompactionRunRange(const LeafIndexEntry &leaf_index_entry);
 
     Status
-    SplitLeaf(SegmentBuilder *seg_builder, uint32_t seg_no, const LeafIndexEntry &leaf_index_entry,SequenceNumber seq_num,
+    SplitLeaf(SegmentBuilder *seg_builder, uint32_t seg_no, const LeafIndexEntry &leaf_index_entry,
+              SequenceNumber seq_num,
               std::string *l1_max_key_buf, std::string *l2_max_key_buf, std::string *l1_index_entry_buf,
               std::string *l2_index_entry_buf);
+
     // silkstore stuff
-    LeafStore * leaf_store_ = nullptr;
+    LeafStore *leaf_store_ = nullptr;
     LeafStatStore stat_store_;
 
     struct MergeStats {
@@ -240,6 +249,7 @@ private:
         // # miniruns in total checked during GC.
         // gc_miniruns_total - gc_miniruns_queried => # miniruns that are skipped by
         size_t gc_miniruns_total;
+
         void Add(size_t read, size_t written) {
             bytes_read += read;
             bytes_written += written;
@@ -251,8 +261,9 @@ private:
 
         void AddGCStats(size_t read, size_t written) {
             gc_bytes_written += written;
-            gc_bytes_read  += read;
+            gc_bytes_read += read;
         }
+
         void AddGCMiniRunStats(size_t miniruns_queried, size_t miniruns_total) {
             gc_miniruns_queried += miniruns_queried;
             gc_miniruns_total += miniruns_total;
@@ -268,10 +279,10 @@ private:
         void AddTimeGC(size_t t) {
             time_spent_gc += t;
         }
-    }stats_;
+    } stats_;
 };
 
-Status DestroyDB(const std::string& dbname, const Options& options);
+Status DestroyDB(const std::string &dbname, const Options &options);
 
 }  // namespace silkstore
 }  // namespace leveldb

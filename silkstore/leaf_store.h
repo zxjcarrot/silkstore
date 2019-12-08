@@ -127,7 +127,7 @@ class LeafIndexEntryBuilder {
  */
 class LeafStatStore {
 public:
-    static constexpr int read_interval_in_micros = 5000000; // ten seconds
+    static constexpr int read_interval_in_micros = 5000000;
     static constexpr double read_hotness_exp_smooth_factor = 0.8;
     static constexpr double write_hotness_exp_smooth_factor = 0.8;
 

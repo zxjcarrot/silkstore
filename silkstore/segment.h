@@ -17,16 +17,17 @@ namespace leveldb {
 namespace silkstore {
 
 class SegmentManager;
+
 static std::string MakeSegmentFileName(uint32_t segment_id);
 
 class SegmentBuilder {
- public:
+public:
     // Create a builder that will store the contents of the table it is
     // building in *file.  Does not close the file.  It is up to the
     // caller to close the file after calling Finish().
     SegmentBuilder(const Options &options, const std::string &src_segment_filepath,
                    const std::string &target_segment_filepath, WritableFile *file,
-                   uint32_t seg_id, SegmentManager * segment_mgr);
+                   uint32_t seg_id, SegmentManager *segment_mgr);
 
     SegmentBuilder(const SegmentBuilder &) = delete;
 
@@ -75,7 +76,8 @@ class SegmentBuilder {
     bool RunStarted() const;
 
     uint32_t GetFinishedRunDataSize();
- private:
+
+private:
     bool ok() const { return status().ok(); }
 
     // Advanced operation: flush any buffered key/value pairs to file.
@@ -98,7 +100,7 @@ class SegmentBuilder {
 *     n
 */
 class Segment {
- public:
+public:
     static Status Open(const Options &options, uint32_t segment_id,
                        RandomAccessFile *file, uint64_t file_size,
                        Segment **segment);
@@ -108,12 +110,14 @@ class Segment {
     Segment(const Segment &) = delete;
 
     void Ref();
+
     void UnRef();
+
     int NumRef();
 
     void operator=(const Segment &) = delete;
 
-    RandomAccessFile* SetNewSegmentFile(RandomAccessFile* file);
+    RandomAccessFile *SetNewSegmentFile(RandomAccessFile *file);
 
     Status OpenMiniRun(int run_no, Block &index_block, MiniRun **run);
 
@@ -128,8 +132,10 @@ class Segment {
     void ForEachRun(std::function<bool(int run_no, MiniRunHandle run_handle, size_t run_size, bool valid)> processor);
 
     uint32_t SegmentId() const;
+
     size_t SegmentSize() const;
- private:
+
+private:
     struct Rep;
     Rep *rep_;
 
@@ -137,7 +143,7 @@ class Segment {
 };
 
 class SegmentManager {
- public:
+public:
     SegmentManager(const SegmentManager &) = delete;
 
     SegmentManager(const SegmentManager &&) = delete;
@@ -152,7 +158,7 @@ class SegmentManager {
                               std::function<void()> gc_func);
 
     // Get the top K most invalidated segments
-    std::vector<Segment*> GetMostInvalidatedSegments(int K);
+    std::vector<Segment *> GetMostInvalidatedSegments(int K);
 
     // Open or create a segment object
     // OpenSegment should always be paired with DropSegment
@@ -165,7 +171,8 @@ class SegmentManager {
     // This function waits for old readers to the segment to exit before physically deleting resources.
     Status RemoveSegment(uint32_t seg_id);
 
-    Status NewSegmentBuilder(uint32_t *seg_id, std::unique_ptr<SegmentBuilder> &seg_builder_ptr, bool gc_on_segment_shortage);
+    Status
+    NewSegmentBuilder(uint32_t *seg_id, std::unique_ptr<SegmentBuilder> &seg_builder_ptr, bool gc_on_segment_shortage);
 
     size_t ApproximateSize();
 
@@ -173,8 +180,9 @@ class SegmentManager {
 
     Status RenameSegment(uint32_t seg_id, const std::string target_filepath);
 
-    void ForEachSegment(std::function<void(Segment* seg)> processor);
- private:
+    void ForEachSegment(std::function<void(Segment *seg)> processor);
+
+private:
     struct Rep;
     Rep *rep_;
 

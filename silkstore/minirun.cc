@@ -23,11 +23,11 @@ namespace silkstore {
 
 MiniRun::MiniRun(const Options *options, RandomAccessFile *file,
                  uint64_t off, uint64_t size, Block &index_block)
-    : options(options),
-      file(file),
-      run_start_off(off),
-      run_size(size),
-      index_block(index_block) {}
+        : options(options),
+          file(file),
+          run_start_off(off),
+          run_size(size),
+          index_block(index_block) {}
 
 static void DeleteBlock(void *arg, void *ignored) {
     delete reinterpret_cast<Block *>(arg);
@@ -44,7 +44,7 @@ static void ReleaseBlock(void *arg, void *h) {
     cache->Release(handle);
 }
 
-Iterator* MiniRun::NewIteratorForOneBlock(const leveldb::ReadOptions & read_options, BlockHandle handle) {
+Iterator *MiniRun::NewIteratorForOneBlock(const leveldb::ReadOptions &read_options, BlockHandle handle) {
     Block *block = nullptr;
 
     BlockContents contents;
@@ -54,7 +54,7 @@ Iterator* MiniRun::NewIteratorForOneBlock(const leveldb::ReadOptions & read_opti
         block = new Block(contents);
     }
 
-    Iterator* iter;
+    Iterator *iter;
     if (block == nullptr) {
         return NewErrorIterator(s);
     } else {

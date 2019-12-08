@@ -15,16 +15,17 @@
 #include "silkstore/silkstore_iter.h"
 #include "silkstore/util.h"
 #include "silkstore/segment.h"
+
 extern int runs_searched;
 namespace leveldb {
 namespace silkstore {
 
 class LeafStore::LeafStoreIterator : public Iterator {
- public:
-    LeafStoreIterator(const ReadOptions &options, LeafStore* store)
-        : ropts_(options),
-          store_(store),
-          leaf_it_(nullptr) {
+public:
+    LeafStoreIterator(const ReadOptions &options, LeafStore *store)
+            : ropts_(options),
+              store_(store),
+              leaf_it_(nullptr) {
         leaf_index_it_ = store_->leaf_index_->NewIterator(options);
     }
 
@@ -64,7 +65,7 @@ class LeafStore::LeafStoreIterator : public Iterator {
     // Position at the first key in the source that is at or past target.
     // The iterator is Valid() after this call iff the source contains
     // an entry that comes at or past target.
-    void Seek(const Slice& target) override {
+    void Seek(const Slice &target) override {
         if (!status_.ok()) status_ = Status::OK();
         leaf_index_it_->Seek(target);
         OpenLeafIterator();
@@ -131,12 +132,13 @@ class LeafStore::LeafStoreIterator : public Iterator {
         }
         return s;
     }
- private:
+
+private:
     ReadOptions ropts_;
     Status status_;  // only store non-iterator error here
-    LeafStore* store_;
-    Iterator* leaf_index_it_;
-    Iterator* leaf_it_ = nullptr;
+    LeafStore *store_;
+    Iterator *leaf_index_it_;
+    Iterator *leaf_it_ = nullptr;
 
     void OpenLeafIterator() {
         if (leaf_index_it_->Valid()) {
@@ -153,7 +155,7 @@ class LeafStore::LeafStoreIterator : public Iterator {
     }
 };
 
-MiniRunIndexEntry::MiniRunIndexEntry(const Slice &data) : raw_data_(data),run_datasize_(0) {
+MiniRunIndexEntry::MiniRunIndexEntry(const Slice &data) : raw_data_(data), run_datasize_(0) {
     assert(raw_data_.size() >= 16);
     const char *p = raw_data_.data();
     run_datasize_ = DecodeFixed32(p);
@@ -167,7 +169,8 @@ MiniRunIndexEntry::MiniRunIndexEntry(const Slice &data) : raw_data_(data),run_da
     filter_data_len_ = DecodeFixed32(p);
 }
 
-MiniRunIndexEntry MiniRunIndexEntry::Build(uint32_t seg_no, uint32_t run_no, Slice block_index_data, Slice filter_data,     size_t run_datasize, std::string * buf) {
+MiniRunIndexEntry MiniRunIndexEntry::Build(uint32_t seg_no, uint32_t run_no, Slice block_index_data, Slice filter_data,
+                                           size_t run_datasize, std::string *buf) {
     PutFixed32(buf, run_datasize);
     PutFixed32(buf, seg_no);
     PutFixed32(buf, run_no);
@@ -225,7 +228,9 @@ std::string LeafIndexEntry::ToString() {
     for (size_t i = 0; i < entries.size(); ++i) {
         if (i > 0)
             res += ",";
-        res += std::to_string(entries.size() - i - 1) + "(seg_num=" + std::to_string(entries[i].GetSegmentNumber()) + ", run_no=" + std::to_string(entries[i].GetRunNumberWithinSegment()) + ",run_datasize=" + std::to_string(entries[i].GetRunDataSize()) + ")";
+        res += std::to_string(entries.size() - i - 1) + "(seg_num=" + std::to_string(entries[i].GetSegmentNumber()) +
+               ", run_no=" + std::to_string(entries[i].GetRunNumberWithinSegment()) + ",run_datasize=" +
+               std::to_string(entries[i].GetRunDataSize()) + ")";
     }
     res += "]";
     return res;
@@ -332,10 +337,10 @@ Status LeafIndexEntryBuilder::ReplaceMiniRunRange(const LeafIndexEntry &base,
 }
 
 Status LeafIndexEntryBuilder::RemoveMiniRunRange(const LeafIndexEntry &base,
-                                 uint32_t start,
-                                 uint32_t end,
-                                 std::string *buf,
-                                 LeafIndexEntry *new_entry) {
+                                                 uint32_t start,
+                                                 uint32_t end,
+                                                 std::string *buf,
+                                                 LeafIndexEntry *new_entry) {
     if (start >= base.GetNumMiniRuns() || end >= base.GetNumMiniRuns())
         return Status::InvalidArgument(
                 "[start, end] not within bound of [0, " + std::to_string(base.GetNumMiniRuns()) + "]");
@@ -357,13 +362,13 @@ Status LeafIndexEntryBuilder::RemoveMiniRunRange(const LeafIndexEntry &base,
     return Status::OK();
 }
 
-Iterator* LeafStore::NewIterator(const ReadOptions &options) {
+Iterator *LeafStore::NewIterator(const ReadOptions &options) {
     return new LeafStoreIterator(options, this);
 }
 
-Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::string *value, LeafStatStore & stat_store) {
+Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::string *value, LeafStatStore &stat_store) {
     Iterator *it = leaf_index_->NewIterator(options);
-    DeferCode c([it](){delete it;});
+    DeferCode c([it]() { delete it; });
     it->Seek(key.user_key());
     if (it->Valid() == false)
         return Status::NotFound("");
@@ -386,7 +391,7 @@ Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::str
         s = seg_manager_->OpenSegment(seg_no, &seg);
         if (!s.ok())
             return true;
-        DeferCode c2([this, seg](){seg_manager_->DropSegment(seg);});
+        DeferCode c2([this, seg]() { seg_manager_->DropSegment(seg); });
 
         Block index_block(BlockContents{minirun_index_entry.GetBlockIndexData(), false, false});
         MiniRun *run;
@@ -426,7 +431,7 @@ Status LeafStore::Get(const ReadOptions &options, const LookupKey &key, std::str
     return !s.ok() ? s : key_status;
 }
 
-static void NewIteratorForLeafCleanupFunc(void *arg1, void * arg2) {
+static void NewIteratorForLeafCleanupFunc(void *arg1, void *arg2) {
     delete static_cast<MiniRun *>(arg1);
     static_cast<Segment *>(arg2)->UnRef();
 }
@@ -436,7 +441,7 @@ Iterator *LeafStore::NewIteratorForLeaf(const ReadOptions &options, const LeafIn
     s = Status::OK();
     std::vector<Iterator *> iters;
     std::vector<MiniRun *> runs;
-    std::vector<Segment*> segs;
+    std::vector<Segment *> segs;
     iters.reserve(leaf_index_entry.GetNumMiniRuns());
     runs.reserve(leaf_index_entry.GetNumMiniRuns());
     segs.reserve(leaf_index_entry.GetNumMiniRuns());
@@ -489,9 +494,9 @@ Iterator *LeafStore::NewDBIterForLeaf(const ReadOptions &options, const LeafInde
     return leveldb::silkstore::NewDBIterator(user_comparator, internal_iter, seq);
 }
 
-Status LeafStore::Open(SegmentManager* seg_manager, DB * leaf_index,
-                       const Options & options, const Comparator * user_cmp,
-                       LeafStore ** store) {
+Status LeafStore::Open(SegmentManager *seg_manager, DB *leaf_index,
+                       const Options &options, const Comparator *user_cmp,
+                       LeafStore **store) {
     *store = new LeafStore(seg_manager, leaf_index, options, user_cmp);
     return Status::OK();
 }

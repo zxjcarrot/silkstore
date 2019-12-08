@@ -32,20 +32,20 @@ struct SegmentBuilder::Rep {
     std::string src_segment_filepath;
     std::string target_segment_filepath;
     uint32_t seg_id;
-    SegmentManager * segment_mgr;
+    SegmentManager *segment_mgr;
 
     Rep(const Options &opt, const std::string &src_segment_filepath,
         const std::string &target_segment_filepath, WritableFile *f,
-        uint32_t seg_id, SegmentManager * segment_mgr)
-        : options(opt),
-          file(f),
-          num_entries(0),
-          run_builder(new MiniRunBuilder(opt, f, 0)),
-          run_started(false),
-          prev_file_size(0),
-          src_segment_filepath(src_segment_filepath),
-          target_segment_filepath(target_segment_filepath),
-          seg_id(seg_id), segment_mgr(segment_mgr){}
+        uint32_t seg_id, SegmentManager *segment_mgr)
+            : options(opt),
+              file(f),
+              num_entries(0),
+              run_builder(new MiniRunBuilder(opt, f, 0)),
+              run_started(false),
+              prev_file_size(0),
+              src_segment_filepath(src_segment_filepath),
+              target_segment_filepath(target_segment_filepath),
+              seg_id(seg_id), segment_mgr(segment_mgr) {}
 
     ~Rep() {
         delete file;
@@ -54,7 +54,7 @@ struct SegmentBuilder::Rep {
 
 SegmentBuilder::SegmentBuilder(const Options &options, const std::string &src_segment_filepath,
                                const std::string &target_segment_filepath, WritableFile *file,
-                               uint32_t seg_id, SegmentManager * segment_mgr)
+                               uint32_t seg_id, SegmentManager *segment_mgr)
         : rep_(new Rep(options, src_segment_filepath, target_segment_filepath, file, seg_id, segment_mgr)) {
 }
 
@@ -74,7 +74,6 @@ Status SegmentBuilder::StartMiniRun() {
     r->run_builder->Reset(r->prev_file_size);
     return Status::OK();
 }
-
 
 
 bool SegmentBuilder::RunStarted() const {
@@ -100,7 +99,7 @@ Slice SegmentBuilder::GetFinishedRunFilterBlock() {
     return r->run_builder->FilterBlock();
 }
 
-Status SegmentBuilder::FinishMiniRun(uint32_t * run_no) {
+Status SegmentBuilder::FinishMiniRun(uint32_t *run_no) {
     Rep *r = rep_;
     assert(r->run_started == true);
     r->status = r->run_builder->Finish();
