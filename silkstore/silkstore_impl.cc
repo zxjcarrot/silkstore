@@ -977,7 +977,7 @@ SilkStore::CompactLeaf(SegmentBuilder *seg_builder, uint32_t seg_no, const LeafI
 }
 
 Status SilkStore::CopyMinirunRun(Slice leaf_max_key, LeafIndexEntry &leaf_index_entry, uint32_t run_idx_in_index_entry,
-                                 SegmentBuilder *target_seg_builder) {
+                                 SegmentBuilder *target_seg_builder, WriteBatch & leaf_index_wb) {
     Status s;
     assert(run_idx_in_index_entry < leaf_index_entry.GetNumMiniRuns());
     std::unique_ptr<Iterator> source_it(
@@ -1011,13 +1011,15 @@ Status SilkStore::CopyMinirunRun(Slice leaf_max_key, LeafIndexEntry &leaf_index_
                                                    &buf2, &new_leaf_index_entry);
     if (!s.ok())
         return s;
-    return leaf_index_->Put({}, leaf_max_key, new_leaf_index_entry.GetRawData());
+    leaf_index_wb.Put(leaf_max_key, new_leaf_index_entry.GetRawData());
+    return s;
 }
 
-Status SilkStore::GarbageCollectSegment(Segment *seg, GroupedSegmentAppender &appender) {
+Status SilkStore::GarbageCollectSegment(Segment *seg, GroupedSegmentAppender &appender, WriteBatch & leaf_index_wb) {
     Status s;
     size_t copied = 0;
     size_t segment_size = seg->SegmentSize();
+
     seg->ForEachRun([&, this](int run_no, MiniRunHandle run_handle, size_t run_size, bool valid) {
         stats_.AddGCUnoptStats(std::max(options_.block_size, run_handle.last_block_handle.size()));
         if (valid == false) { // Skip invalidated runs
@@ -1080,7 +1082,7 @@ Status SilkStore::GarbageCollectSegment(Segment *seg, GroupedSegmentAppender &ap
             if (!s.ok()) // error, early exit
                 return true;
             // Copy the entire minirun to the other segment file and update leaf_index accordingly
-            s = CopyMinirunRun(leaf_key, leaf_index_entry, run_idx_in_index_entry, seg_builder);
+            s = CopyMinirunRun(leaf_key, leaf_index_entry, run_idx_in_index_entry, seg_builder, leaf_index_wb);
             if (!s.ok()) // error, early exit
                 return true;
             // Read from the old leaf
@@ -1186,6 +1188,7 @@ std::string SilkStore::SegmentsSpaceUtilityHistogram() {
 int SilkStore::GarbageCollect() {
     MutexLock g(&GCMutex);
 
+    WriteBatch leaf_index_wb;
     // Simple policy: choose the segment with maximum number of invalidated runs
     constexpr int kGCSegmentCandidateNum = 5;
     std::vector<Segment *> candidates = segment_manager_->GetMostInvalidatedSegments(kGCSegmentCandidateNum);
@@ -1195,9 +1198,11 @@ int SilkStore::GarbageCollect() {
     bool gc_on_segment_shortage = false;
     GroupedSegmentAppender appender(1, segment_manager_, options_, gc_on_segment_shortage);
     for (auto seg : candidates) {
-        GarbageCollectSegment(seg, appender);
+        GarbageCollectSegment(seg, appender, leaf_index_wb);
     }
-
+    if (leaf_index_wb.ApproximateSize()) {
+        leaf_index_->Write({}, &leaf_index_wb);
+    }
     for (auto seg: candidates) {
         segment_manager_->RemoveSegment(seg->SegmentId());
     }

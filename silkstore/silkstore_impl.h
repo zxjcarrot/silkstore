@@ -86,9 +86,9 @@ public:
     void BackgroundCompaction();
 
     Status CopyMinirunRun(Slice leaf_max_key, LeafIndexEntry &index_entry, uint32_t run_idx_in_index_entry,
-                          SegmentBuilder *seg_builder);
+                          SegmentBuilder *seg_builder, WriteBatch & leaf_index_wb);
 
-    Status GarbageCollectSegment(Segment *seg, GroupedSegmentAppender &appender);
+    Status GarbageCollectSegment(Segment *seg, GroupedSegmentAppender &appender, WriteBatch & leaf_index_wb);
 
     int GarbageCollect();
 

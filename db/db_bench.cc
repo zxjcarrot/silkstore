@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
+#include <unordered_set>
 #include <sstream>
 #include <sys/types.h>
 #include <stdio.h>
@@ -1061,6 +1062,7 @@ class Benchmark {
         Status s;
         std::string msg;
         int64_t bytes = 0;
+        //std::unordered_set<std::string> m;
         int max_log = ceil(std::log(FLAGS_table_size)/std::log(2));
         for (int i = 0; i < num_; i += entries_per_batch_) {
             batch.Clear();
@@ -1069,6 +1071,7 @@ class Benchmark {
                 char key[100];
                 snprintf(key, sizeof(key), "%016d", k);
                 batch.Put(key, gen.Generate(value_size_));
+                //m.insert(key);
                 bytes += value_size_ + strlen(key);
                 thread->stats.FinishedSingleOp();
             }
@@ -1078,7 +1081,10 @@ class Benchmark {
                 exit(1);
             }
         }
+
         thread->stats.AddBytes(bytes);
+        //std::string num_unique_keys = std::to_string(m.size());
+        //thread->stats.AddMessage(num_unique_keys + " unique keys ");
         db_->GetProperty(std::string(FLAGS_db_type) + ".stats", &msg);
         thread->stats.AddMessage(msg);
         std::string time_spent_gc;
@@ -1100,7 +1106,7 @@ class Benchmark {
     }
     delete iter;
     char msg[100];
-    snprintf(msg, sizeof(msg), "%lld bytes", bytes);
+    snprintf(msg, sizeof(msg), "%lld bytes %d reads", bytes, i);
     thread->stats.AddMessage(msg);
     thread->stats.AddBytes(bytes);
   }
