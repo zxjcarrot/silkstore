@@ -22,7 +22,6 @@
 #include "port/thread_annotations.h"
 
 #include "leaf_store.h"
-#include "segment.h"
 
 namespace leveldb {
 namespace silkstore {
@@ -85,12 +84,6 @@ public:
 
     void BackgroundCompaction();
 
-    Status CopyMinirunRun(Slice leaf_max_key, LeafIndexEntry &index_entry, uint32_t run_idx_in_index_entry,
-                          SegmentBuilder *seg_builder, WriteBatch & leaf_index_wb);
-
-    Status GarbageCollectSegment(Segment *seg, GroupedSegmentAppender &appender, WriteBatch & leaf_index_wb);
-
-    int GarbageCollect();
 
     std::string SegmentsSpaceUtilityHistogram();
 
@@ -138,7 +131,7 @@ private:
     size_t memtable_capacity_ GUARDED_BY(mutex_);;
     size_t allowed_num_leaves = 0;
     size_t num_leaves = 0;
-    SegmentManager *segment_manager_;
+    LeafManager *leaf_manager_;
     // Queue of writers.
     std::deque<Writer *> writers_ GUARDED_BY(mutex_);
     WriteBatch *tmp_batch_ GUARDED_BY(mutex_);
@@ -207,7 +200,7 @@ private:
 
     void MaybeScheduleCompaction();
 
-    Status DoCompactionWork(WriteBatch &leaf_index_wb);
+    Status DoCompactionWork();
 
     Status OptimizeLeaf();
 
@@ -217,20 +210,17 @@ private:
 
     void BackgroundCall();
 
-    Status InvalidateLeafRuns(const LeafIndexEntry &leaf_index_entry, size_t start_run, size_t end_run);
-
     LeafIndexEntry
-    CompactLeaf(SegmentBuilder *seg_builder, uint32_t seg_no, const LeafIndexEntry &leaf_index_entry, Status &s,
+    CompactLeaf(LeafAppender *leaf_appender, const LeafIndexEntry &leaf_index_entry, Status &s,
                 std::string *buf, uint32_t start_minirun_no, uint32_t end_minirun_no,
                 const Snapshot *leaf_index_snap = nullptr);
 
     std::pair<uint32_t, uint32_t> ChooseLeafCompactionRunRange(const LeafIndexEntry &leaf_index_entry);
 
     Status
-    SplitLeaf(SegmentBuilder *seg_builder, uint32_t seg_no, const LeafIndexEntry &leaf_index_entry,
-              SequenceNumber seq_num,
-              std::string *l1_max_key_buf, std::string *l2_max_key_buf, std::string *l1_index_entry_buf,
-              std::string *l2_index_entry_buf);
+    SplitLeaf(const LeafIndexEntry &leaf_index_entry, SequenceNumber seq_num,
+              std::string *l1_max_key_buf, std::string *l2_max_key_buf,
+              std::string *l1_index_entry_buf, std::string *l2_index_entry_buf);
 
     // silkstore stuff
     LeafStore *leaf_store_ = nullptr;

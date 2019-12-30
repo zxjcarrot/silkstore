@@ -15,7 +15,6 @@
 #include "util/coding.h"
 #include "util/crc32c.h"
 
-#include "silkstore/segment.h"
 #include "silkstore/minirun.h"
 
 namespace leveldb {

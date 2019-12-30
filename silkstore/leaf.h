@@ -1,9 +1,9 @@
 //
-// Created by zxjcarrot on 2019-06-28.
+// Created by zxjcarrot on 2019-12-13.
 //
 
-#ifndef SILKSTORE_SEGMENT_H
-#define SILKSTORE_SEGMENT_H
+#ifndef SILKSTORE_LEAF_H
+#define SILKSTORE_LEAF_H
 
 #include <stdint.h>
 #include <functional>
@@ -16,27 +16,25 @@
 namespace leveldb {
 namespace silkstore {
 
-class SegmentManager;
+class LeafManager;
+static std::string MakeLeafFileName(uint32_t leaf_id);
 
-static std::string MakeSegmentFileName(uint32_t segment_id);
-
-class SegmentBuilder {
-public:
+class LeafAppender {
+ public:
     // Create a builder that will store the contents of the table it is
     // building in *file.  Does not close the file.  It is up to the
     // caller to close the file after calling Finish().
-    SegmentBuilder(const Options &options, const std::string &src_segment_filepath,
-                   const std::string &target_segment_filepath, WritableFile *file,
-                   uint32_t seg_id, SegmentManager *segment_mgr);
+    LeafAppender(const Options &options, WritableFile *file, size_t file_size,
+                 uint32_t leaf_id, LeafManager *leaf_mgr);
 
-    SegmentBuilder(const SegmentBuilder &) = delete;
+    LeafAppender(const LeafAppender &) = delete;
 
-    void operator=(const SegmentBuilder &) = delete;
+    void operator=(const LeafAppender &) = delete;
 
     // REQUIRES: Either Finish() or Abandon() has been called.
-    ~SegmentBuilder();
+    ~LeafAppender();
 
-    uint32_t SegmentId() const;
+    uint32_t LeafId() const;
 
     // Add key,value to the table being constructed.
     // REQUIRES: key is after any previously added key according to comparator.
@@ -52,7 +50,7 @@ public:
     // Finish building a minirun.
     // Store the pointer to the current minirun in run_handle.
     // REQUIRES: Finish(), Abandon() have not been called.
-    Status FinishMiniRun(uint32_t *run_no);
+    Status FinishMiniRun(MiniRunHandle *run_handle);
 
     // Return the index block for the previously finished run.
     // REQUIRES: FinishMiniRun() has been called and StartMiniRun() has not.
@@ -62,7 +60,7 @@ public:
     // REQUIRES: FinishMiniRun() has been called and StartMiniRun() has not.
     Slice GetFinishedRunFilterBlock();
 
-    // Finish building the segment.
+    // Finish building the leaf.
     // REQUIRES: all mini runs has finished building through pairs of StartMiniRun() and FinishMiniRun().
     Status Finish();
 
@@ -76,8 +74,7 @@ public:
     bool RunStarted() const;
 
     uint32_t GetFinishedRunDataSize();
-
-private:
+ private:
     bool ok() const { return status().ok(); }
 
     // Advanced operation: flush any buffered key/value pairs to file.
@@ -91,39 +88,30 @@ private:
 };
 
 /*
-* A segment is the storage management unit and typically sized in MBs.
-* Writes to segment are append only and in unit of minirun.
-* GC runs at per-segment level.
-* Segment File Format:
+* A leaf is the storage management unit of a range-based partition, typically sized in MBs.
+* Writes to leave are append only and in unit of minirun.
+* Leaf File Format:
 *     run[n]
-*     run_handle[n]
-*     n
 */
-class Segment {
-public:
-    static Status Open(const Options &options, uint32_t segment_id,
+class Leaf {
+ public:
+    static Status Open(const Options &options, uint32_t leaf_id,
                        RandomAccessFile *file, uint64_t file_size,
-                       Segment **segment);
+                       Leaf ** leaf);
 
-    ~Segment();
+    ~Leaf();
 
-    Segment(const Segment &) = delete;
+    Leaf(const Leaf &) = delete;
 
     void Ref();
-
     void UnRef();
-
     int NumRef();
 
-    void operator=(const Segment &) = delete;
+    void operator=(const Leaf &) = delete;
 
-    RandomAccessFile *SetNewSegmentFile(RandomAccessFile *file);
+    RandomAccessFile* SetNewLeafFile(RandomAccessFile* file);
 
-    Status OpenMiniRun(int run_no, Block &index_block, MiniRun **run);
-
-    // Mark the minirun indicated by the segment.run_handle[run_no] as invalid.
-    // Later GCs can simply skip this run without querying index for validness.
-    Status InvalidateMiniRun(const int &run_no);
+    Status OpenMiniRun(MiniRunHandle run_handle, Block &index_block, MiniRun **run);
 
     // Iterate over all run numbers using a user-defined handler.
     // Arguments include a run number, handle to the run, size of the run, and a boolean value indicating
@@ -131,65 +119,57 @@ public:
     // This function is mainly used in garbage collection.
     void ForEachRun(std::function<bool(int run_no, MiniRunHandle run_handle, size_t run_size, bool valid)> processor);
 
-    uint32_t SegmentId() const;
+    uint32_t LeafId() const;
 
-    size_t SegmentSize() const;
-
-private:
+    size_t LeafSize() const;
+ private:
     struct Rep;
     Rep *rep_;
 
-    explicit Segment(Rep *rep) { rep_ = rep; }
+    explicit Leaf(Rep *rep) { rep_ = rep; }
 };
 
-class SegmentManager {
-public:
-    SegmentManager(const SegmentManager &) = delete;
+class LeafManager {
+ public:
+    LeafManager(const LeafManager &) = delete;
 
-    SegmentManager(const SegmentManager &&) = delete;
+    LeafManager(const LeafManager &&) = delete;
 
-    SegmentManager &operator=(const SegmentManager &) = delete;
+    LeafManager &operator=(const LeafManager &) = delete;
 
-    SegmentManager &operator=(const SegmentManager &&) = delete;
+    LeafManager &operator=(const LeafManager &&) = delete;
 
     static Status OpenManager(const Options &options,
                               const std::string &dbname,
-                              SegmentManager **manager_ptr,
-                              std::function<void()> gc_func);
+                              LeafManager **manager_ptr);
 
-    // Get the top K most invalidated segments
-    std::vector<Segment *> GetMostInvalidatedSegments(int K);
+    // Open or create a leaf object
+    // OpenLeaf should always be paired with DropLeaf
+    Status OpenLeaf(uint32_t leaf_id, Leaf **leaf_Ptr);
 
-    // Open or create a segment object
-    // OpenSegment should always be paired with DropSegment
-    Status OpenSegment(uint32_t seg_id, Segment **seg_ptr);
+    void DropLeaf(Leaf *leaf_ptr);
 
-    void DropSegment(Segment *seg_ptr);
-
-    // Remove segment objects and underlying segment files if associated.
+    // Remove leaf objects and underlying leaf files if associated.
     // This function should be called for phyiscal cleanup after GC.
-    // This function waits for old readers to the segment to exit before physically deleting resources.
-    Status RemoveSegment(uint32_t seg_id);
+    // This function waits for old readers to the leaf to exit before physically deleting resources.
+    Status RemoveLeaf(uint32_t leaf_id);
 
-    Status
-    NewSegmentBuilder(uint32_t *seg_id, std::unique_ptr<SegmentBuilder> &seg_builder_ptr, bool gc_on_segment_shortage);
+    Status NewLeafAppender(uint32_t *leaf_id, std::unique_ptr<LeafAppender> &leaf_appender_ptr);
 
+    Status NewLeafAppenderFromExistingLeaf(uint32_t leaf_id, std::unique_ptr<LeafAppender> &leaf_appender_ptr);
     size_t ApproximateSize();
 
-    Status InvalidateSegmentRun(uint32_t seg_id, uint32_t run_no);
+    void ForEachLeaf(std::function<void(Leaf* leaf)> processor);
 
-    Status RenameSegment(uint32_t seg_id, const std::string target_filepath);
-
-    void ForEachSegment(std::function<void(Segment *seg)> processor);
-
-private:
+    Status SynchronizeLeafMetaWithPersistentData(uint32_t leaf_id);
+ private:
     struct Rep;
     Rep *rep_;
 
-    SegmentManager(Rep *r) : rep_(r) {}
+    LeafManager(Rep *r) : rep_(r) {}
 };
 
 }  // namespace silkstore
 }  // namespace leveldb
 
-#endif //SILKSTORE_SEGMENT_H
+#endif //SILKSTORE_LEAF_H

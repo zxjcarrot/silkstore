@@ -176,8 +176,8 @@ bool ParseSilkstoreFileName(const std::string& filename,
   } else if (rest == "LOG" || rest == "LOG.old") {
     *number = 0;
     *type = kInfoLogFile;
-  } else if (rest.starts_with("seg.")) {
-    rest.remove_prefix(strlen("seg."));
+  } else if (rest.starts_with("leaf.")) {
+    rest.remove_prefix(strlen("leaf."));
     uint64_t num;
     if (!ConsumeDecimalNumber(&rest, &num)) {
       return false;

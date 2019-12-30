@@ -22,6 +22,8 @@
 #include "util/mutexlock.h"
 #include "leveldb/env.h"
 
+#include "silkstore/leaf.h"
+
 namespace leveldb {
 namespace silkstore {
 
@@ -36,23 +38,22 @@ class MiniRunIndexEntry {
 
     Slice GetFilterData() const;
 
-    uint32_t GetSegmentNumber() const { return segment_number_; };
-
-    uint32_t GetRunNumberWithinSegment() const { return run_no_within_segment_; };
+    uint32_t GetLeafId() const { return leaf_id_; };
 
     Slice GetRawData() const { return raw_data_; }
 
-    size_t GetRunDataSize() const { return run_datasize_; }
+    MiniRunHandle GetRunHandleWithinLeaf() const { return run_handle_within_leaf_; };
 
-    static MiniRunIndexEntry Build(uint32_t seg_no, uint32_t run_no, Slice block_index_data, Slice filter_data, size_t run_datasize, std::string * buf);
+    uint64_t GetRunDataSize() const { return run_handle_within_leaf_.run_size; }
+
+    static MiniRunIndexEntry Build(uint32_t leaf_id, MiniRunHandle run_handle, Slice block_index_data, Slice filter_data, std::string *buf);
 
  private:
     Slice raw_data_;
-    uint32_t segment_number_;
-    uint32_t run_no_within_segment_;
+    uint32_t leaf_id_;
     uint32_t block_index_data_len_;
     uint32_t filter_data_len_;
-    uint32_t run_datasize_;
+    MiniRunHandle run_handle_within_leaf_;
 };
 
 class LeafIndexEntry {
@@ -81,6 +82,8 @@ class LeafIndexEntry {
     std::string ToString();
 
     size_t GetLeafDataSize() const;
+
+    uint32_t LeafId() const;
 private:
     Slice raw_data_;
 };
@@ -256,7 +259,7 @@ private:
 
 class LeafStore {
  public:
-    static Status Open(SegmentManager *seg_manager, DB *leaf_index,
+    static Status Open(LeafManager *leaf_manager, DB *leaf_index,
                        const Options &options, const Comparator *user_cmp,
                        LeafStore **store);
 
@@ -279,14 +282,14 @@ class LeafStore {
  private:
     class LeafStoreIterator;
 
-    LeafStore(SegmentManager *seg_manager, DB *leaf_index,
+    LeafStore(LeafManager *leaf_manager, DB *leaf_index,
               const Options &options, const Comparator *user_cmp)
-        : seg_manager_(seg_manager),
+        : leaf_manager_(leaf_manager),
           leaf_index_(leaf_index),
           options_(options),
           user_cmp_(user_cmp) {}
 
-    SegmentManager *seg_manager_;
+    LeafManager *leaf_manager_;
     DB *leaf_index_;
     const Options options_;
     const Comparator *user_cmp_ = nullptr;

@@ -48,11 +48,11 @@ private:
 };
 
 /*
- * A pointer that stores the location of minirun within a segment.
+ * A pointer that stores the location of minirun within a leaf.
  */
 struct MiniRunHandle {
     uint64_t run_start_pos;
-    BlockHandle last_block_handle;
+    uint64_t run_size;
 };
 
 class MiniRunBuilder {

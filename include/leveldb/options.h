@@ -104,7 +104,7 @@ struct LEVELDB_EXPORT Options {
 
   size_t leaf_max_num_miniruns;
 
-  size_t storage_block_size;
+  size_t update_size_per_leaf;
     // Number of open files that can be used by the DB.  You may need to
   // increase this if your database has a large working set (budget
   // one open file per 2MB of working set).
