@@ -56,6 +56,10 @@ class LEVELDB_EXPORT Status {
     return Status(kSplitUnderflow, msg, msg2);
   }
 
+  static Status LeafEmpty(const Slice& msg, const Slice& msg2 = Slice()) {
+    return Status(kLeafEmpty, msg, msg2);
+  }
+
   // Returns true iff the status indicates success.
   bool ok() const { return (state_ == nullptr); }
 
@@ -74,8 +78,11 @@ class LEVELDB_EXPORT Status {
   // Returns true iff the status indicates an InvalidArgument.
   bool IsInvalidArgument() const { return code() == kInvalidArgument; }
 
-  // Returns true iff the status indicates an InvalidArgument.
+  // Returns true iff the status indicates an SplitUnderflow.
   bool IsSplitUnderflow() const { return code() == kSplitUnderflow; }
+
+  // Returns true iff the status indicates an LeafEmpty.
+  bool IsLeafEmpty() const { return code() == kLeafEmpty; }
 
   // Return a string representation of this status suitable for printing.
   // Returns the string "OK" for success.
@@ -97,6 +104,7 @@ class LEVELDB_EXPORT Status {
     kInvalidArgument = 4,
     kIOError = 5,
     kSplitUnderflow = 6,
+    kLeafEmpty = 7
   };
 
   Code code() const {

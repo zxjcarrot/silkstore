@@ -206,18 +206,21 @@ public:
         stat.last_write_time_in_s = cur_time_in_s;
     }
 
-    void SplitLeaf(const std::string & leaf_key, const std::string & first_half_key) {
+    void SplitLeaf(const std::string & leaf_key, std::vector<std::string> & splitted_keys) {
         // leaf_key is splitted into (first_half_key, leaf_key)
         MutexLock g(&lock);
         if (m.find(leaf_key) == m.end())
             return;
-        LeafStat & first_half_leaf_stat = m[first_half_key] = {-1, 0, 0, (long long)Env::Default()->NowMicros() / 1000000, 0, 1};
-        LeafStat & second_half_leaf_stat = m[leaf_key];
-        first_half_leaf_stat.write_hotness = second_half_leaf_stat.write_hotness /= 2;
-        first_half_leaf_stat.reads_in_last_interval = second_half_leaf_stat.reads_in_last_interval /= 2;
-        first_half_leaf_stat.group_id = second_half_leaf_stat.group_id;
-        first_half_leaf_stat.last_write_time_in_s = second_half_leaf_stat.last_write_time_in_s;
-        second_half_leaf_stat.num_runs = 1;
+        LeafStat original_leaf_stat = m[leaf_key];
+        m.erase(leaf_key);
+        for (auto & subkey : splitted_keys) {
+            LeafStat & new_leaf_stat = m[subkey] = {-1, 0, 0, (long long)Env::Default()->NowMicros() / 1000000, 0, 1};
+            new_leaf_stat.write_hotness = original_leaf_stat.write_hotness / splitted_keys.size();
+            new_leaf_stat.read_hotness = original_leaf_stat.read_hotness / splitted_keys.size();
+            new_leaf_stat.reads_in_last_interval = original_leaf_stat.reads_in_last_interval / splitted_keys.size();
+            new_leaf_stat.group_id = original_leaf_stat.group_id;
+            new_leaf_stat.last_write_time_in_s = original_leaf_stat.last_write_time_in_s;
+        }
     }
 
 

@@ -1429,14 +1429,14 @@ bool DBImpl::GetProperty(const Slice& property, std::string* value) {
       int files = versions_->NumLevelFiles(level);
       if (stats_[level].micros > 0 || files > 0) {
         snprintf(
-            buf, sizeof(buf),
-            "%3d %8d %8.0f %9.0f %8.0f %9.0f\n",
-            level,
-            files,
-            versions_->NumLevelBytes(level) / 1048576.0,
-            stats_[level].micros / 1e6,
-            stats_[level].bytes_read / 1048576.0,
-            stats_[level].bytes_written / 1048576.0);
+                buf, sizeof(buf),
+                "%3d %8d %8.0f %9.0f %8.0f %9.0f\n",
+                level,
+                files,
+                versions_->NumLevelBytes(level) / 1048576.0,
+                stats_[level].micros / 1e6,
+                stats_[level].bytes_read / 1048576.0,
+                stats_[level].bytes_written / 1048576.0);
         value->append(buf);
       }
     }
@@ -1456,6 +1456,16 @@ bool DBImpl::GetProperty(const Slice& property, std::string* value) {
     snprintf(buf, sizeof(buf), "%llu",
              static_cast<unsigned long long>(total_usage));
     value->append(buf);
+    return true;
+  } else if (in == "write_volume") {
+    size_t bytes = 0;
+    for (int level = 0; level < config::kNumLevels; level++) {
+      int files = versions_->NumLevelFiles(level);
+      if (stats_[level].micros > 0 || files > 0) {
+        bytes += stats_[level].bytes_written;
+      }
+    }
+    *value = std::to_string(bytes);
     return true;
   }
 

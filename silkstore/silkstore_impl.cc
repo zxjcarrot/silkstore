@@ -650,7 +650,11 @@ bool SilkStore::GetProperty(const Slice &property, std::string *value) {
         leaf_index_->GetProperty("leveldb.stats", &leaf_index_stats);
         value->append(leaf_index_stats);
         return true;
+    } else if (property.ToString() == "silkstore.write_volume") {
+        *value = std::to_string(stats_.bytes_written);
+        return true;
     }
+
     return false;
 }
 
@@ -809,97 +813,6 @@ std::pair<uint32_t, uint32_t> SilkStore::ChooseLeafCompactionRunRange(const Leaf
     return {num_runs - 2, num_runs - 1};
 }
 
-Status
-SilkStore::SplitLeaf(SegmentBuilder *seg_builder, uint32_t seg_id, const LeafIndexEntry &leaf_index_entry,
-                     SequenceNumber seq_num,
-                     std::string *l1_max_key_buf, std::string *l2_max_key_buf,
-                     std::string *l1_index_entry_buf, std::string *l2_index_entry_buf) {
-    // TODO: implement leaf split
-    Status s;
-    /* We use DBIter to get the most recent non-deleted keys. */
-    auto it = dynamic_cast<silkstore::DBIter *>(leaf_store_->NewDBIterForLeaf(ReadOptions{}, leaf_index_entry, s,
-                                                                              user_comparator(), seq_num));
-
-    DeferCode c([it]() { delete it; });
-
-    it->SeekToFirst();
-    size_t bytes_total = 0;
-    size_t key_count = 0;
-    size_t first_key_bytes = 0;
-    while (it->Valid()) {
-        //keys.push_back(it->key().ToString());
-        bytes_total += it->internal_key().size() + it->value().size();
-        ++key_count;
-        if (key_count == 1) {
-            first_key_bytes = bytes_total;
-        }
-
-        it->Next();
-    }
-    assert(key_count >= 1);
-    if (key_count == 1 || bytes_total < options_.leaf_datasize_thresh / 2) {
-        return Status::SplitUnderflow("Insufficient key count after split");
-    }
-    assert(key_count >= 2);
-    size_t pivot_point = std::max(first_key_bytes, bytes_total / 2);
-
-    it->SeekToFirst();
-    seg_builder->StartMiniRun();
-    size_t bytes = 0;
-
-    // first half
-    while (it->Valid()) {
-        bytes += it->internal_key().size() + it->value().size();
-        /*
-         * Since splitting a leaf should preserve the sequence numbers of the most recent non-deleted keys,
-         * we modified DBIter to provide access to its internal key representation.
-         * */
-        seg_builder->Add(it->internal_key(), it->value());
-        --key_count;
-        if (key_count == 1 || bytes >= pivot_point) {
-            uint32_t run_no;
-            seg_builder->FinishMiniRun(&run_no);
-            l1_max_key_buf->assign(it->key().data(), it->key().size());
-            std::string buf;
-            MiniRunIndexEntry minirun_index_entry = MiniRunIndexEntry::Build(seg_id, run_no,
-                                                                             seg_builder->GetFinishedRunIndexBlock(),
-                                                                             seg_builder->GetFinishedRunFilterBlock(),
-                                                                             seg_builder->GetFinishedRunDataSize(),
-                                                                             &buf);
-            LeafIndexEntry new_leaf_index_entry;
-            LeafIndexEntryBuilder::AppendMiniRunIndexEntry(LeafIndexEntry{}, minirun_index_entry, l1_index_entry_buf,
-                                                           &new_leaf_index_entry);
-            it->Next();
-            break;
-        }
-        it->Next();
-    }
-
-    // second half
-    assert(it->Valid());
-    seg_builder->StartMiniRun();
-    while (it->Valid()) {
-        // Same reasoning as above
-        seg_builder->Add(it->internal_key(), it->value());
-        l2_max_key_buf->assign(it->key().data(), it->key().size());
-        it->Next();
-    }
-    {
-        uint32_t run_no;
-        seg_builder->FinishMiniRun(&run_no);
-        std::string buf;
-        MiniRunIndexEntry minirun_index_entry = MiniRunIndexEntry::Build(seg_id, run_no,
-                                                                         seg_builder->GetFinishedRunIndexBlock(),
-                                                                         seg_builder->GetFinishedRunFilterBlock(),
-                                                                         seg_builder->GetFinishedRunDataSize(),
-                                                                         &buf);
-        LeafIndexEntry new_leaf_index_entry;
-        LeafIndexEntryBuilder::AppendMiniRunIndexEntry(LeafIndexEntry{}, minirun_index_entry, l2_index_entry_buf,
-                                                       &new_leaf_index_entry);
-        assert(it->Valid() == false);
-    }
-    return s;
-}
 
 LeafIndexEntry
 SilkStore::CompactLeaf(SegmentBuilder *seg_builder, uint32_t seg_no, const LeafIndexEntry &leaf_index_entry, Status &s,
@@ -1340,134 +1253,207 @@ Status SilkStore::MakeRoomInLeafLayer(bool force) {
     WriteBatch leaf_index_wb;
     SequenceNumber seq_num = max_sequence_;
     mutex_.Unlock();
-    ReadOptions ro;
-    ro.snapshot = leaf_index_->GetSnapshot();
-    // Release snapshot after the traversal is done
-    DeferCode c([&ro, this]() {
-        leaf_index_->ReleaseSnapshot(ro.snapshot);
-        mutex_.Lock();
-    });
+    restart:
+    {
+        ReadOptions ro;
+        ro.snapshot = leaf_index_->GetSnapshot();
+        // Release snapshot after the traversal is done
+        DeferCode c([&ro, this]() {
+            leaf_index_->ReleaseSnapshot(ro.snapshot);
+            mutex_.Lock();
+        });
 
-    std::unique_ptr<Iterator> iit(leaf_index_->NewIterator(ro));
+        std::unique_ptr<Iterator> iit(leaf_index_->NewIterator(ro));
 
-    iit->SeekToFirst();
+        iit->SeekToFirst();
 
-    GroupedSegmentAppender grouped_segment_appender(1, segment_manager_, options_);
-    Status s;
-    int num_splits = 0;
-    int self_compaction = 0;
-    std::string buf, buf2, buf3, buf4, buf5, buf6;
+        GroupedSegmentAppender grouped_segment_appender(1, segment_manager_, options_);
+        Status s;
+        int num_splits = 0;
+        int self_compaction = 0;
 
-    while (iit->Valid() && s.ok()) {
-        Slice leaf_max_key = iit->key();
-        LeafIndexEntry leaf_index_entry(iit->value());
+        auto SplitLeaf = [&grouped_segment_appender, &leaf_index_wb, this](const LeafIndexEntry &leaf_index_entry,
+                                                                           SequenceNumber seq_num,
+                                                                           std::vector<std::string> &max_keys,
+                                                                           std::vector<std::string> &max_key_index_entry_bufs) {
+            Status s;
+            /* We use DBIter to get the most recent non-deleted keys. */
+            auto it = dynamic_cast<silkstore::DBIter *>(leaf_store_->NewDBIterForLeaf(ReadOptions{}, leaf_index_entry,
+                                                                                      s,
+                                                                                      user_comparator(), seq_num));
 
-        int num_miniruns = leaf_index_entry.GetNumMiniRuns();
+            DeferCode c([it]() { delete it; });
 
-        if (force ||
-            num_miniruns >= options_.leaf_max_num_miniruns ||
-            leaf_index_entry.GetLeafDataSize() >= options_.leaf_datasize_thresh) {
+            it->SeekToFirst();
+
+            size_t bytes_current_leaf = 0;
 
             SegmentBuilder *seg_builder = nullptr;
-            bool switched_segment = false;
-            s = grouped_segment_appender.MakeRoomForGroupAndGetBuilder(0, &seg_builder, switched_segment);
-            if (!s.ok())
-                return s;
-
-            if (switched_segment && leaf_index_wb.ApproximateSize() > kLeafIndexWriteBufferMaxSize) {
-                // If all previous segments are built successfully and
-                // the leaf_index write buffer exceeds the threshold,
-                // write it down to leaf_index_ to keep the memory footprint small.
-                s = leaf_index_->Write({}, &leaf_index_wb);
+            auto AssignSegmentBuilder = [&seg_builder, &grouped_segment_appender, &leaf_index_wb, this]() {
+                bool switched_segment = false;
+                Status s = grouped_segment_appender.MakeRoomForGroupAndGetBuilder(0, &seg_builder, switched_segment);
                 if (!s.ok())
                     return s;
-                leaf_index_wb.Clear();
+
+                if (switched_segment && leaf_index_wb.ApproximateSize() > kLeafIndexWriteBufferMaxSize) {
+                    // If all previous segments are built successfully and
+                    // the leaf_index write buffer exceeds the threshold,
+                    // write it down to leaf_index_ to keep the memory footprint small.
+                    s = leaf_index_->Write({}, &leaf_index_wb);
+                    if (!s.ok())
+                        return s;
+                    leaf_index_wb.Clear();
+                }
+                return Status::OK();
+            };
+
+
+            std::string max_key;
+            std::string max_key_index_entry_buf;
+            while (it->Valid()) {
+                if (seg_builder == nullptr) {
+                    s = AssignSegmentBuilder();
+                    if (!s.ok())
+                        return s;
+                    seg_builder->StartMiniRun();
+                }
+                bytes_current_leaf += it->internal_key().size() + it->value().size();
+                /*
+                 * Since splitting a leaf should preserve the sequence numbers of the most recent non-deleted keys,
+                 * we modified DBIter to provide access to its internal key representation.
+                 * */
+                seg_builder->Add(it->internal_key(), it->value());
+                max_key = it->key().ToString();
+                it->Next();
+                if (bytes_current_leaf >= options_.leaf_datasize_thresh / 2 || it->Valid() == false) {
+                    uint32_t run_no;
+                    seg_builder->FinishMiniRun(&run_no);
+                    max_key_index_entry_buf.clear();
+                    std::string buf;
+                    MiniRunIndexEntry minirun_index_entry = MiniRunIndexEntry::Build(seg_builder->SegmentId(), run_no,
+                                                                                     seg_builder->GetFinishedRunIndexBlock(),
+                                                                                     seg_builder->GetFinishedRunFilterBlock(),
+                                                                                     seg_builder->GetFinishedRunDataSize(),
+                                                                                     &buf);
+                    LeafIndexEntry new_leaf_index_entry;
+                    LeafIndexEntryBuilder::AppendMiniRunIndexEntry(LeafIndexEntry{}, minirun_index_entry,
+                                                                   &max_key_index_entry_buf, &new_leaf_index_entry);
+                    max_keys.push_back(max_key);
+                    max_key_index_entry_bufs.push_back(max_key_index_entry_buf);
+                    if (it->Valid() == true) {
+                        // If there are more key values left, keep working.
+                        s = AssignSegmentBuilder();
+                        if (!s.ok())
+                            return s;
+                        seg_builder->StartMiniRun();
+                    }
+                    bytes_current_leaf = 0;
+                }
             }
+            return Status::OK();
+        };
 
-            uint32_t seg_id = seg_builder->SegmentId();
+        while (iit->Valid() && s.ok()) {
+            Slice leaf_max_key = iit->key();
+            LeafIndexEntry leaf_index_entry(iit->value());
 
-            bool compact_all = false;
-            if ((leaf_index_entry.GetLeafDataSize() >= options_.leaf_datasize_thresh ||
-                 num_leaves < allowed_num_leaves)) {
-                //fprintf(stderr, "Splitting leaf with max key %s at sequence num %lu segment %d ", leaf_max_key.ToString().c_str(), seq_num, seg_id);
-                s = SplitLeaf(seg_builder, seg_id, leaf_index_entry, seq_num, &buf3, &buf4, &buf5, &buf6);
-                if (!s.ok()) {
-                    if (s.IsSplitUnderflow()) {
-                        compact_all = true;
-                        //fprintf(stderr, " underflowed\n");
-                        goto compaction_inside_leaf;
-                    } else {
+            int num_miniruns = leaf_index_entry.GetNumMiniRuns();
+
+            if (force ||
+                num_miniruns >= options_.leaf_max_num_miniruns
+                //|| leaf_index_entry.GetLeafDataSize() >= options_.leaf_datasize_thresh
+                    ) {
+
+                SegmentBuilder *seg_builder = nullptr;
+                bool switched_segment = false;
+                s = grouped_segment_appender.MakeRoomForGroupAndGetBuilder(0, &seg_builder, switched_segment);
+                if (!s.ok())
+                    return s;
+
+                if (switched_segment && leaf_index_wb.ApproximateSize() > kLeafIndexWriteBufferMaxSize) {
+                    // If all previous segments are built successfully and
+                    // the leaf_index write buffer exceeds the threshold,
+                    // write it down to leaf_index_ to keep the memory footprint small.
+                    s = leaf_index_->Write({}, &leaf_index_wb);
+                    if (!s.ok())
+                        return s;
+                    leaf_index_wb.Clear();
+                }
+
+                uint32_t seg_id = seg_builder->SegmentId();
+
+                //if ((leaf_index_entry.GetLeafDataSize() >= options_.leaf_datasize_thresh)) {
+                    //fprintf(stderr, "Splitting leaf with max key %s at sequence num %lu segment %d\n",
+                    //        leaf_max_key.ToString().c_str(), seq_num, seg_id);
+                    std::vector<std::string> max_keys;
+                    std::vector<std::string> max_key_index_entry_bufs;
+                    s = SplitLeaf(leaf_index_entry, seq_num, max_keys, max_key_index_entry_bufs);
+                    assert(max_keys.size() == max_key_index_entry_bufs.size());
+                    if (!s.ok())
+                        return s;
+                    ++num_splits;
+                    // Invalidate the miniruns pointed by the old leaf index entry
+                    s = InvalidateLeafRuns(leaf_index_entry, 0, leaf_index_entry.GetNumMiniRuns() - 1);
+                    if (!s.ok()) {
                         return s;
                     }
-                } else {
-                    //fprintf(stderr, "into two leaves (%s, %s) with index content(%s, %s)\n", buf3.c_str(), buf4.c_str(), LeafIndexEntry(buf5).ToString().c_str(), LeafIndexEntry(buf6).ToString().c_str());
-                }
-                ++num_splits;
-                // Invalidate the miniruns pointed by the old leaf index entry
-                s = InvalidateLeafRuns(leaf_index_entry, 0, leaf_index_entry.GetNumMiniRuns() - 1);
-                if (!s.ok()) {
-                    return s;
-                }
 
-                //Update the index entries
-                // Second half
-                leaf_index_wb.Put(Slice(buf3), Slice(buf5));
-                leaf_index_wb.Put(Slice(buf4), Slice(buf6));
-                if (!s.ok()) {
-                    return s;
-                }
-                stat_store_.SplitLeaf(leaf_max_key.ToString(), buf3);
-                stat_store_.UpdateLeafNumRuns(leaf_max_key.ToString(), 1);
-                stat_store_.UpdateLeafNumRuns(buf3, 1);
-
-                ++num_leaves;
-            } else {
-                compaction_inside_leaf:
-                self_compaction++;
-                /* Number of leaves exceeds allowable quota, try compaction inside the leaf. */
-                std::pair<uint32_t, uint32_t> p = compact_all ? std::make_pair((uint32_t) 0, (uint32_t) (
-                        leaf_index_entry.GetNumMiniRuns() - 1)) : ChooseLeafCompactionRunRange(leaf_index_entry);
-                uint32_t start_minirun_no = p.first;
-                uint32_t end_minirun_no = p.second;
-                //fprintf(stderr, "Compacting leaf with max key %s, minirun range [%d, %d] segment %d\n", leaf_max_key.ToString().c_str(), start_minirun_no, end_minirun_no, seg_id);
-                LeafIndexEntry new_leaf_index_entry = CompactLeaf(seg_builder, seg_id, leaf_index_entry, s, &buf3,
-                                                                  start_minirun_no, end_minirun_no);
-                if (!s.ok()) {
-                    return s;
-                }
-                // Invalidate compacted runs
-                s = InvalidateLeafRuns(leaf_index_entry, start_minirun_no, end_minirun_no);
-                if (!s.ok()) {
-                    return s;
-                }
-
-                leaf_index_wb.Put(leaf_max_key, new_leaf_index_entry.GetRawData());
-                stat_store_.UpdateLeafNumRuns(leaf_max_key.ToString(), new_leaf_index_entry.GetNumMiniRuns());
+                    //Update the index entries
+                    stat_store_.SplitLeaf(leaf_max_key.ToString(), max_keys);
+                    leaf_index_wb.Delete(leaf_max_key);
+                    --num_leaves;
+                    for (size_t i = 0; i < max_keys.size(); ++i) {
+                        leaf_index_wb.Put(Slice(max_keys[i]), Slice(max_key_index_entry_bufs[i]));
+                        stat_store_.UpdateLeafNumRuns(max_keys[i], 1);
+                    }
+                    num_leaves += max_keys.size();
+//                } else {
+//                    self_compaction++;
+//                    /* Number of leaves exceeds allowable quota, try compaction inside the leaf. */
+//                    std::pair<uint32_t, uint32_t> p = ChooseLeafCompactionRunRange(leaf_index_entry);
+//                    uint32_t start_minirun_no = p.first;
+//                    uint32_t end_minirun_no = p.second;
+//                    //fprintf(stderr, "Compacting leaf with max key %s, minirun range [%d, %d] segment %d\n", leaf_max_key.ToString().c_str(), start_minirun_no, end_minirun_no, seg_id);
+//                    std::string buf;
+//                    LeafIndexEntry new_leaf_index_entry = CompactLeaf(seg_builder, seg_id, leaf_index_entry, s, &buf,
+//                                                                      start_minirun_no, end_minirun_no);
+//                    if (!s.ok()) {
+//                        return s;
+//                    }
+//                    // Invalidate compacted runs
+//                    s = InvalidateLeafRuns(leaf_index_entry, start_minirun_no, end_minirun_no);
+//                    if (!s.ok()) {
+//                        return s;
+//                    }
+//
+//                    leaf_index_wb.Put(leaf_max_key, new_leaf_index_entry.GetRawData());
+//                    stat_store_.UpdateLeafNumRuns(leaf_max_key.ToString(), new_leaf_index_entry.GetNumMiniRuns());
+//                }
+                // Read all data and merge them, then write all out
+                stats_.Add(leaf_index_entry.GetLeafDataSize(), leaf_index_entry.GetLeafDataSize());
             }
-            // Read all data and merge them, then write all out
-            stats_.Add(leaf_index_entry.GetLeafDataSize(), leaf_index_entry.GetLeafDataSize());
+            // Record the data read from leaf_index as well
+            stats_.Add(iit->key().size() + iit->value().size(), 0);
+            iit->Next();
         }
-        // Record the data read from leaf_index as well
-        stats_.Add(iit->key().size() + iit->value().size(), 0);
-        iit->Next();
-    }
 
 
-    if (!s.ok()) {
-        Log(options_.info_log, "MakeRoomInLeafLayer failed: %s\n", s.ToString().c_str());
-        return s;
-    }
-    if (leaf_index_wb.ApproximateSize()) {
-        s = leaf_index_->Write({}, &leaf_index_wb);
         if (!s.ok()) {
-            Log(options_.info_log, "leaf_index_->Write failed: %s\n", s.ToString().c_str());
+            Log(options_.info_log, "MakeRoomInLeafLayer failed: %s\n", s.ToString().c_str());
             return s;
         }
+        if (leaf_index_wb.ApproximateSize()) {
+            s = leaf_index_->Write({}, &leaf_index_wb);
+            if (!s.ok()) {
+                Log(options_.info_log, "leaf_index_->Write failed: %s\n", s.ToString().c_str());
+                return s;
+            }
+        }
+
+        //fprintf(stderr, "avg runsize %d, self compactions %d, num_splits %d, num_leaves %d, memtable size %lu, segments size %lu\n", imm_->ApproximateMemoryUsage() / (num_leaves == 0 ? 1 : num_leaves), self_compaction, num_splits, (num_leaves == 0 ? 1 : num_leaves), imm_->ApproximateMemoryUsage(), segment_manager_->ApproximateSize());
+
+        return s;
     }
-
-    //fprintf(stderr, "avg runsize %d, self compactions %d, num_splits %d, num_leaves %d, memtable size %lu, segments size %lu\n", imm_->ApproximateMemoryUsage() / (num_leaves == 0 ? 1 : num_leaves), self_compaction, num_splits, (num_leaves == 0 ? 1 : num_leaves), imm_->ApproximateMemoryUsage(), segment_manager_->ApproximateSize());
-
-    return s;
 }
 
 static int num_compactions = 0;

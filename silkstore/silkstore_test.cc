@@ -586,7 +586,7 @@ TEST(DBTest, RandomKeyTest) {
             auto ans = m[keys[idx]];
             if (res != ans) {
                 fprintf(stderr, "Key %s has wrong value %s, correct value %s, last inserted key %s %d\n", keys[idx].c_str(), res.c_str(), ans.c_str(), keys[i % kNumKVs].c_str(), i);
-                res = Get(keys[idx]);
+                //res = Get(keys[idx]);
             }
             ASSERT_EQ(res, ans);
         }
@@ -600,7 +600,7 @@ TEST(DBTest, RandomKeyTest) {
         auto ans = m[keys[idx]];
         if (res != ans) {
             fprintf(stderr, "Key %s has wrong value %s, correct value %s, last inserted key %s %d\n", keys[idx].c_str(), res.c_str(), ans.c_str(), keys[i % kNumKVs].c_str(), i);
-            res = Get(keys[i]);
+            //res = Get(keys[i]);
         }
         ASSERT_EQ(res, ans);
     }

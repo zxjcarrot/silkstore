@@ -12,7 +12,7 @@
 constexpr size_t kSegmentFileSizeThreshold = 64 * 1024 * 1024;
 constexpr size_t kLeafDataSizeThreshold = 4 * 1024 * 1024;
 constexpr size_t kStorageBlocKSize = 4096;
-constexpr size_t kLeafMaxRunNum = 15;
+constexpr size_t kLeafMaxRunNum = 20;
 namespace leveldb {
 
 Options::Options()
@@ -28,7 +28,7 @@ Options::Options()
       leaf_datasize_thresh(kLeafDataSizeThreshold),
       leaf_max_num_miniruns(kLeafMaxRunNum),
       storage_block_size(kStorageBlocKSize),
-      memtbl_to_L0_ratio(30),
+      memtbl_to_L0_ratio(100),
       max_open_files(1000),
       block_cache(nullptr),
       block_size(4096),

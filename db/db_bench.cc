@@ -1053,47 +1053,51 @@ class Benchmark {
     std::string segment_util;
     db_->GetProperty("silkstore.segment_util", &segment_util);
     thread->stats.AddMessage(segment_util);
+    std::string write_volume;
+    db_->GetProperty(std::string(FLAGS_db_type) + ".write_volume", &write_volume);
+    std::string wm = "Write Amplification Factor: " + std::to_string(std::stol(write_volume) / (bytes + 1.0));
+    thread->stats.AddMessage(wm);
   }
 
 
-    void WriteSkewed(ThreadState* thread) {
-        RandomGenerator gen;
-        WriteBatch batch;
-        Status s;
-        std::string msg;
-        int64_t bytes = 0;
-        //std::unordered_set<std::string> m;
-        int max_log = ceil(std::log(FLAGS_table_size)/std::log(2));
-        for (int i = 0; i < num_; i += entries_per_batch_) {
-            batch.Clear();
-            for (int j = 0; j < entries_per_batch_; j++) {
-                const int k = thread->rand.Skewed(max_log);
-                char key[100];
-                snprintf(key, sizeof(key), "%016d", k);
-                batch.Put(key, gen.Generate(value_size_));
-                //m.insert(key);
-                bytes += value_size_ + strlen(key);
-                thread->stats.FinishedSingleOp();
-            }
-            s = db_->Write(write_options_, &batch);
-            if (!s.ok()) {
-                fprintf(stderr, "put error: %s\n", s.ToString().c_str());
-                exit(1);
-            }
-        }
+  void WriteSkewed(ThreadState *thread) {
+      RandomGenerator gen;
+      WriteBatch batch;
+      Status s;
+      std::string msg;
+      int64_t bytes = 0;
+      //std::unordered_set<std::string> m;
+      int max_log = ceil(std::log(FLAGS_table_size) / std::log(2));
+      for (int i = 0; i < num_; i += entries_per_batch_) {
+          batch.Clear();
+          for (int j = 0; j < entries_per_batch_; j++) {
+              const int k = thread->rand.Skewed(max_log);
+              char key[100];
+              snprintf(key, sizeof(key), "%016d", k);
+              batch.Put(key, gen.Generate(value_size_));
+              //m.insert(key);
+              bytes += value_size_ + strlen(key);
+              thread->stats.FinishedSingleOp();
+          }
+          s = db_->Write(write_options_, &batch);
+          if (!s.ok()) {
+             fprintf(stderr, "put error: %s\n", s.ToString().c_str());
+             exit(1);
+          }
+      }
 
-        thread->stats.AddBytes(bytes);
-        //std::string num_unique_keys = std::to_string(m.size());
-        //thread->stats.AddMessage(num_unique_keys + " unique keys ");
-        db_->GetProperty(std::string(FLAGS_db_type) + ".stats", &msg);
-        thread->stats.AddMessage(msg);
-        std::string time_spent_gc;
-        db_->GetProperty("silkstore.gcstat", &time_spent_gc);
-        thread->stats.AddMessage(time_spent_gc);
-        std::string segment_util;
-        db_->GetProperty("silkstore.segment_util", &segment_util);
-        thread->stats.AddMessage(segment_util);
-    }
+      thread->stats.AddBytes(bytes);
+      //std::string num_unique_keys = std::to_string(m.size());
+      //thread->stats.AddMessage(num_unique_keys + " unique keys ");
+      db_->GetProperty(std::string(FLAGS_db_type) + ".stats", &msg);
+      thread->stats.AddMessage(msg);
+      std::string time_spent_gc;
+      db_->GetProperty("silkstore.gcstat", &time_spent_gc);
+      thread->stats.AddMessage(time_spent_gc);
+      std::string segment_util;
+      db_->GetProperty("silkstore.segment_util", &segment_util);
+      thread->stats.AddMessage(segment_util);
+  }
 
   void ReadSequential(ThreadState* thread) {
     Iterator* iter = db_->NewIterator(ReadOptions());
