@@ -19,7 +19,7 @@
 #include "util/mutexlock.h"
 #include "util/random.h"
 #include "util/testutil.h"
-#include <cmath>
+
 // Comma-separated list of operations to run in the specified order
 //   Actual benchmarks:
 //      fillseq       -- write N values in sequential key order in async mode
@@ -52,7 +52,8 @@ static const char* FLAGS_benchmarks =
     "readrandom,"  // Extra run to allow previous compactions to quiesce
     "readseq,"
     "readreverse,"
-    "compact,"
+   /*
+   "compact,"
     "readrandom,"
     "readseq,"
     "readreverse,"
@@ -61,6 +62,7 @@ static const char* FLAGS_benchmarks =
     "snappycomp,"
     "snappyuncomp,"
     "acquireload,"
+    */
     ;
 
 // Number of key/values to place in database
@@ -120,7 +122,7 @@ static bool FLAGS_reuse_logs = false;
 static const char* FLAGS_db = nullptr;
 
 // Test db impl type: leveldb/silkstore
-static const char* FLAGS_db_type = "leveldb";
+static const char* FLAGS_db_type = "silkstore";
 
 // Mixed workload spec
 static const char* FLAGS_mixed_wl_spec = nullptr;
@@ -129,7 +131,7 @@ static int FLAGS_num_ops_in_mixed_wl = 0;
 
 static bool FLAGS_enable_leaf_read_opt = false;
 
-static bool FLAGS_enable_memtable_bloom = false;
+static bool FLAGS_enable_memtable_bloom = true;
 
 // Ratio of the capacity of the log and the dataset
 static double FLAGS_log_dataset_ratio = 2.0;
@@ -983,6 +985,7 @@ class Benchmark {
       options.compression = kNoCompression;
       options.enable_leaf_read_opt = FLAGS_enable_leaf_read_opt;
       options.use_memtable_dynamic_filter = FLAGS_enable_memtable_bloom;
+     // options.nvm_size = 10ul * 1024 * 1024 * 1024; 
       options.maximum_segments_storage_size = (static_cast<int64_t>(kKeySize + FLAGS_value_size) * FLAGS_table_size) * FLAGS_log_dataset_ratio;
       fprintf(stderr, "maximum_segments_storage_size %lu bytes\n", options.maximum_segments_storage_size);
 
@@ -1421,7 +1424,7 @@ int main(int argc, char** argv) {
   if (FLAGS_db== nullptr) {
       //leveldb::g_env->GetTestDirectory(&default_db_path);
       //default_db_path = "/mnt/900p/dbbench";
-      default_db_path = "/mnt/toshiba/dbbench";
+      default_db_path = "/mnt/toshiba/nvmbench";
 //      if (FLAGS_db_type == std::string("silkstore"))
 //          default_db_path += "/silkstore";
 //      else

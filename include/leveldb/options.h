@@ -199,6 +199,13 @@ struct LEVELDB_EXPORT Options {
   // Default: 0.1
   double memtable_dynamic_filter_fp_rate;
   // Create an Options object with default values for all fields.
+
+
+  // Nvm map file
+  const char* nvm_file;
+  // nvm map size 
+  
+  size_t nvm_size;
   Options();
 };
 

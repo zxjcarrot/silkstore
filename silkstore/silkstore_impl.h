@@ -14,7 +14,6 @@
 
 #include "db/dbformat.h"
 #include "db/log_writer.h"
-#include "db/memtable.h"
 #include "db/snapshot.h"
 #include "leveldb/db.h"
 #include "leveldb/env.h"
@@ -23,6 +22,11 @@
 
 #include "leaf_store.h"
 #include "segment.h"
+
+
+#include "nvm/nvmem.h"
+#include "nvm/nvmmanager.h"
+#include "db/nvmemtable.h"
 
 namespace leveldb {
 namespace silkstore {
@@ -126,8 +130,8 @@ private:
     port::Mutex mutex_;
     port::AtomicPointer shutting_down_;
     port::CondVar background_work_finished_signal_ GUARDED_BY(mutex_);
-    MemTable *mem_;
-    MemTable *imm_ GUARDED_BY(mutex_);  // Memtable being compacted
+    NvmemTable *mem_;
+    NvmemTable *imm_ GUARDED_BY(mutex_);  // Memtable being compacted
 
     port::AtomicPointer has_imm_;       // So bg thread can detect non-null imm_
     WritableFile *logfile_;
@@ -138,6 +142,8 @@ private:
     size_t memtable_capacity_ GUARDED_BY(mutex_);;
     size_t allowed_num_leaves = 0;
     size_t num_leaves = 0;
+    silkstore::NvmManager *nvm_manager_;
+
     SegmentManager *segment_manager_;
     // Queue of writers.
     std::deque<Writer *> writers_ GUARDED_BY(mutex_);

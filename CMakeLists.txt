@@ -29,6 +29,8 @@ include(CheckLibraryExists)
 check_library_exists(crc32c crc32c_value "" HAVE_CRC32C)
 check_library_exists(snappy snappy_compress "" HAVE_SNAPPY)
 check_library_exists(tcmalloc malloc "" HAVE_TCMALLOC)
+check_library_exists(pmem pmem_map_file "" HAVE_PEME)
+
 
 include(CheckCXXSymbolExists)
 # Using check_cxx_symbol_exists() instead of check_c_symbol_exists() because
@@ -89,6 +91,7 @@ add_library(leveldb "")
 target_sources(leveldb
   PRIVATE
     "${PROJECT_BINARY_DIR}/${LEVELDB_PORT_CONFIG_DIR}/port_config.h"
+
     "${PROJECT_SOURCE_DIR}/db/builder.cc"
     "${PROJECT_SOURCE_DIR}/db/builder.h"
     "${PROJECT_SOURCE_DIR}/db/c.cc"
@@ -106,9 +109,8 @@ target_sources(leveldb
     "${PROJECT_SOURCE_DIR}/db/log_reader.h"
     "${PROJECT_SOURCE_DIR}/db/log_writer.cc"
     "${PROJECT_SOURCE_DIR}/db/log_writer.h"
-    "${PROJECT_SOURCE_DIR}/db/memtable.cc"
-    "${PROJECT_SOURCE_DIR}/db/memtable.h"
-    "${PROJECT_SOURCE_DIR}/db/repair.cc"
+
+   # "${PROJECT_SOURCE_DIR}/db/repair.cc"
     "${PROJECT_SOURCE_DIR}/db/skiplist.h"
     "${PROJECT_SOURCE_DIR}/db/snapshot.h"
     "${PROJECT_SOURCE_DIR}/db/table_cache.cc"
@@ -117,8 +119,13 @@ target_sources(leveldb
     "${PROJECT_SOURCE_DIR}/db/version_edit.h"
     "${PROJECT_SOURCE_DIR}/db/version_set.cc"
     "${PROJECT_SOURCE_DIR}/db/version_set.h"
+
     "${PROJECT_SOURCE_DIR}/db/write_batch_internal.h"
+ #   "${PROJECT_SOURCE_DIR}/db/nvm_write_batch_internal.h"
+
     "${PROJECT_SOURCE_DIR}/db/write_batch.cc"
+   # "${PROJECT_SOURCE_DIR}/db/nvm_write_batch.cc"
+
     "${PROJECT_SOURCE_DIR}/port/atomic_pointer.h"
     "${PROJECT_SOURCE_DIR}/port/port_stdcxx.h"
     "${PROJECT_SOURCE_DIR}/port/port.h"
@@ -169,6 +176,22 @@ target_sources(leveldb
     "${PROJECT_SOURCE_DIR}/silkstore/silkstore_iter.cc"
     "${PROJECT_SOURCE_DIR}/silkstore/util.cpp"
 
+    ## Replace memtale with nvmtable  
+    "${PROJECT_SOURCE_DIR}/db/memtable.cc"
+    "${PROJECT_SOURCE_DIR}/db/memtable.h"
+
+    ## Add nvmemtable nvmem btree by yunxiao 
+    "${PROJECT_SOURCE_DIR}/db/nvmemtable.h"
+    "${PROJECT_SOURCE_DIR}/db/nvmemtable.cc"
+    "${PROJECT_SOURCE_DIR}/nvm/nvmem.h"
+    "${PROJECT_SOURCE_DIR}/nvm/nvmem.cc"
+    "${PROJECT_SOURCE_DIR}/nvm/nvmmanager.h"
+    "${PROJECT_SOURCE_DIR}/nvm/nvmmanager.cc"
+
+
+
+
+
   # Only CMake 3.3+ supports PUBLIC sources in targets exported by "install".
   $<$<VERSION_GREATER:CMAKE_VERSION,3.2>:PUBLIC>
     "${LEVELDB_PUBLIC_INCLUDE_DIR}/c.h"
@@ -186,6 +209,8 @@ target_sources(leveldb
     "${LEVELDB_PUBLIC_INCLUDE_DIR}/table_builder.h"
     "${LEVELDB_PUBLIC_INCLUDE_DIR}/table.h"
     "${LEVELDB_PUBLIC_INCLUDE_DIR}/write_batch.h"
+    # "${LEVELDB_PUBLIC_INCLUDE_DIR}/nvm_write_batch.h"
+
 )
 
 # POSIX code is specified separately so we can leave it out in the future.
@@ -245,6 +270,12 @@ if(HAVE_TCMALLOC)
   target_link_libraries(leveldb tcmalloc)
 endif(HAVE_TCMALLOC)
 
+
+if(HAVE_PMEM)
+  target_link_libraries(leveldb -lpmem)
+endif(HAVE_PMEM)
+
+
 # Needed by port_stdcxx.h
 find_package(Threads REQUIRED)
 target_link_libraries(leveldb Threads::Threads)
@@ -286,52 +317,59 @@ if(LEVELDB_BUILD_TESTS)
 
     add_test(NAME "${test_target_name}" COMMAND "${test_target_name}")
   endfunction(leveldb_test)
-  leveldb_test("${PROJECT_SOURCE_DIR}/test/silk.cpp")
+  
+  leveldb_test("${PROJECT_SOURCE_DIR}/test/silk.cc")
+  leveldb_test("${PROJECT_SOURCE_DIR}/test/seq_rand_add-get_test.cc")
 
-  leveldb_test("${PROJECT_SOURCE_DIR}/db/c_test.c")
-  leveldb_test("${PROJECT_SOURCE_DIR}/db/fault_injection_test.cc")
 
-  leveldb_test("${PROJECT_SOURCE_DIR}/issues/issue178_test.cc")
-  leveldb_test("${PROJECT_SOURCE_DIR}/issues/issue200_test.cc")
+  # leveldb_test("${PROJECT_SOURCE_DIR}/db/c_test.c")
+  # leveldb_test("${PROJECT_SOURCE_DIR}/db/fault_injection_test.cc")
 
-  leveldb_test("${PROJECT_SOURCE_DIR}/util/env_test.cc")
-  leveldb_test("${PROJECT_SOURCE_DIR}/util/status_test.cc")
-  leveldb_test("${PROJECT_SOURCE_DIR}/util/no_destructor_test.cc")
+  # leveldb_test("${PROJECT_SOURCE_DIR}/issues/issue178_test.cc")
+  # leveldb_test("${PROJECT_SOURCE_DIR}/issues/issue200_test.cc")
 
-  leveldb_test("${PROJECT_SOURCE_DIR}/silkstore/silkstore_test.cc")
+  # leveldb_test("${PROJECT_SOURCE_DIR}/util/env_test.cc")
+  # leveldb_test("${PROJECT_SOURCE_DIR}/util/status_test.cc")
+  # leveldb_test("${PROJECT_SOURCE_DIR}/util/no_destructor_test.cc")
 
-  leveldb_test("${PROJECT_SOURCE_DIR}/silkstore/minirun_test.cc")
-  leveldb_test("${PROJECT_SOURCE_DIR}/silkstore/util_test.cc")
+   leveldb_test("${PROJECT_SOURCE_DIR}/silkstore/silkstore_test.cc")
+
+  # leveldb_test("${PROJECT_SOURCE_DIR}/silkstore/minirun_test.cc")
+  # leveldb_test("${PROJECT_SOURCE_DIR}/silkstore/util_test.cc")
 
   if(NOT BUILD_SHARED_LIBS)
-    leveldb_test("${PROJECT_SOURCE_DIR}/db/autocompact_test.cc")
-    leveldb_test("${PROJECT_SOURCE_DIR}/db/corruption_test.cc")
-    leveldb_test("${PROJECT_SOURCE_DIR}/db/db_test.cc")
-    leveldb_test("${PROJECT_SOURCE_DIR}/db/dbformat_test.cc")
-    leveldb_test("${PROJECT_SOURCE_DIR}/db/filename_test.cc")
-    leveldb_test("${PROJECT_SOURCE_DIR}/db/log_test.cc")
-    leveldb_test("${PROJECT_SOURCE_DIR}/db/recovery_test.cc")
-    leveldb_test("${PROJECT_SOURCE_DIR}/db/skiplist_test.cc")
-    leveldb_test("${PROJECT_SOURCE_DIR}/db/version_edit_test.cc")
-    leveldb_test("${PROJECT_SOURCE_DIR}/db/version_set_test.cc")
-    leveldb_test("${PROJECT_SOURCE_DIR}/db/write_batch_test.cc")
 
-    leveldb_test("${PROJECT_SOURCE_DIR}/helpers/memenv/memenv_test.cc")
+   # leveldb_test("${PROJECT_SOURCE_DIR}/db/autocompact_test.cc")
+   # leveldb_test("${PROJECT_SOURCE_DIR}/db/corruption_test.cc")
+  #  leveldb_test("${PROJECT_SOURCE_DIR}/db/db_test.cc")
+   # leveldb_test("${PROJECT_SOURCE_DIR}/db/dbformat_test.cc")
+   # leveldb_test("${PROJECT_SOURCE_DIR}/db/filename_test.cc")
+   # leveldb_test("${PROJECT_SOURCE_DIR}/db/log_test.cc")
+   # leveldb_test("${PROJECT_SOURCE_DIR}/db/recovery_test.cc")
+   # leveldb_test("${PROJECT_SOURCE_DIR}/db/skiplist_test.cc")
+   # leveldb_test("${PROJECT_SOURCE_DIR}/db/version_edit_test.cc")
+   # leveldb_test("${PROJECT_SOURCE_DIR}/db/version_set_test.cc")
+   # leveldb_test("${PROJECT_SOURCE_DIR}/db/write_batch_test.cc")
+    target_link_libraries(leveldb -lpmem)
 
-    leveldb_test("${PROJECT_SOURCE_DIR}/table/filter_block_test.cc")
-    leveldb_test("${PROJECT_SOURCE_DIR}/table/table_test.cc")
+   # leveldb_test("${PROJECT_SOURCE_DIR}/db/nvmemtabletest.cc")
 
-    leveldb_test("${PROJECT_SOURCE_DIR}/util/arena_test.cc")
-    leveldb_test("${PROJECT_SOURCE_DIR}/util/bloom_test.cc")
-    leveldb_test("${PROJECT_SOURCE_DIR}/util/cache_test.cc")
-    leveldb_test("${PROJECT_SOURCE_DIR}/util/coding_test.cc")
-    leveldb_test("${PROJECT_SOURCE_DIR}/util/crc32c_test.cc")
-    leveldb_test("${PROJECT_SOURCE_DIR}/util/hash_test.cc")
-    leveldb_test("${PROJECT_SOURCE_DIR}/util/logging_test.cc")
+   # leveldb_test("${PROJECT_SOURCE_DIR}/helpers/memenv/memenv_test.cc")
+
+   # leveldb_test("${PROJECT_SOURCE_DIR}/table/filter_block_test.cc")
+   # leveldb_test("${PROJECT_SOURCE_DIR}/table/table_test.cc")
+
+   # leveldb_test("${PROJECT_SOURCE_DIR}/util/arena_test.cc")
+   # leveldb_test("${PROJECT_SOURCE_DIR}/util/bloom_test.cc")
+   # leveldb_test("${PROJECT_SOURCE_DIR}/util/cache_test.cc")
+   # leveldb_test("${PROJECT_SOURCE_DIR}/util/coding_test.cc")
+   # leveldb_test("${PROJECT_SOURCE_DIR}/util/crc32c_test.cc")
+   # leveldb_test("${PROJECT_SOURCE_DIR}/util/hash_test.cc")
+   # leveldb_test("${PROJECT_SOURCE_DIR}/util/logging_test.cc")
 
     # TODO(costan): This test also uses
     #               "${PROJECT_SOURCE_DIR}/util/env_posix_test_helper.h"
-    leveldb_test("${PROJECT_SOURCE_DIR}/util/env_posix_test.cc")
+   # leveldb_test("${PROJECT_SOURCE_DIR}/util/env_posix_test.cc")
   endif(NOT BUILD_SHARED_LIBS)
 endif(LEVELDB_BUILD_TESTS)
 
@@ -366,6 +404,7 @@ if(LEVELDB_BUILD_BENCHMARKS)
   endfunction(leveldb_benchmark)
 
   if(NOT BUILD_SHARED_LIBS)
+    leveldb_benchmark("${PROJECT_SOURCE_DIR}/db/nvm_db_bench.cc")
     leveldb_benchmark("${PROJECT_SOURCE_DIR}/db/db_bench.cc")
   endif(NOT BUILD_SHARED_LIBS)
 
@@ -382,7 +421,6 @@ if(LEVELDB_BUILD_BENCHMARKS)
   list(APPEND CMAKE_REQUIRED_LIBRARIES kyotocabinet)
   check_cxx_source_compiles("
 #include <kcpolydb.h>
-
 int main() {
   kyotocabinet::TreeDB* db = new kyotocabinet::TreeDB();
   delete db;

@@ -41,7 +41,9 @@ Options::Options()
       maximum_segments_storage_size(0),
       segments_storage_size_gc_threshold(0.9),
       use_memtable_dynamic_filter(false),
-      memtable_dynamic_filter_fp_rate(0.1)
-      {}
+      memtable_dynamic_filter_fp_rate(0.1),
+      nvm_file("/mnt/myPMem/pmem.002"),
+      nvm_size(1024 * 1024 * 1024)   {}
+
 
 }  // namespace leveldb
