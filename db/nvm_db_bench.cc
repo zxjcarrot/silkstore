@@ -11,7 +11,6 @@
 #include "leveldb/db.h"
 #include "leveldb/env.h"
 #include "leveldb/filter_policy.h"
-#include "leveldb/write_batch.h"
 #include "silkstore/silkstore_impl.h"
 #include "port/port.h"
 #include "util/crc32c.h"
@@ -19,6 +18,7 @@
 #include "util/mutexlock.h"
 #include "util/random.h"
 #include "util/testutil.h"
+#include "leveldb/write_batch.h"
 
 // Comma-separated list of operations to run in the specified order
 //   Actual benchmarks:
@@ -131,7 +131,7 @@ static int FLAGS_num_ops_in_mixed_wl = 0;
 
 static bool FLAGS_enable_leaf_read_opt = false;
 
-static bool FLAGS_enable_memtable_bloom = true;
+static bool FLAGS_enable_memtable_bloom = false;
 
 // Ratio of the capacity of the log and the dataset
 static double FLAGS_log_dataset_ratio = 2.0;
@@ -985,7 +985,7 @@ class Benchmark {
       options.compression = kNoCompression;
       options.enable_leaf_read_opt = FLAGS_enable_leaf_read_opt;
       options.use_memtable_dynamic_filter = FLAGS_enable_memtable_bloom;
-     // options.nvm_size = 10ul * 1024 * 1024 * 1024; 
+      options.nvm_size = 10ul * 1024 * 1024 * 1024; 
       options.maximum_segments_storage_size = (static_cast<int64_t>(kKeySize + FLAGS_value_size) * FLAGS_table_size) * FLAGS_log_dataset_ratio;
       fprintf(stderr, "maximum_segments_storage_size %lu bytes\n", options.maximum_segments_storage_size);
 

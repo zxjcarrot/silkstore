@@ -89,7 +89,6 @@ SilkStore::SilkStore(const Options &raw_options, const std::string &dbname)
           shutting_down_(nullptr),
           background_work_finished_signal_(&mutex_),
           mem_(nullptr),
-          imm_(nullptr),
           logfile_(nullptr),
           logfile_number_(0),
           log_(nullptr),
@@ -124,7 +123,11 @@ SilkStore::~SilkStore() {
 
 //    delete versions_;
     if (mem_ != nullptr) mem_->Unref();
-    if (imm_ != nullptr) imm_->Unref();
+    // if (imm_ != nullptr) imm_->Unref();
+    while (!imm_.empty()){
+        imm_.front()->Unref();
+        imm_.pop_front();
+    }
     delete tmp_batch_;
     delete log_;
     delete logfile_;
@@ -333,10 +336,10 @@ Status SilkStore::TEST_CompactMemTable() {
     if (s.ok()) {
         // Wait until the compaction completes
         MutexLock l(&mutex_);
-        while (imm_ != nullptr && bg_error_.ok()) {
+        while (!imm_.empty() && bg_error_.ok()) {
             background_work_finished_signal_.Wait();
         }
-        if (imm_ != nullptr) {
+        if (!imm_.empty() ) {
             s = bg_error_;
         }
     }
@@ -376,14 +379,22 @@ Iterator *SilkStore::NewIterator(const ReadOptions &ropts) {
     std::vector<Iterator *> list;
     list.push_back(mem_->NewIterator());
     mem_->Ref();
-    if (imm_ != nullptr) {
-        list.push_back(imm_->NewIterator());
-        imm_->Ref();
+    if(!imm_.empty()){
+        for( auto it: imm_){
+            list.push_back(it->NewIterator());
+            it->Ref();
+        }
     }
     list.push_back(leaf_store_->NewIterator(ropts));
     Iterator *internal_iter =
             NewMergingIterator(&internal_comparator_, &list[0], list.size());
-    internal_iter->RegisterCleanup(SilkStoreNewIteratorCleanup, mem_, imm_);
+    internal_iter->RegisterCleanup(SilkStoreNewIteratorCleanup, mem_, nullptr);
+
+    if(!imm_.empty()){
+        for( auto it: imm_){
+            internal_iter->RegisterCleanup(SilkStoreNewIteratorCleanup, it, nullptr);
+        }
+    }
     return leveldb::silkstore::NewDBIterator(internal_comparator_.user_comparator(), internal_iter,
                                              seqno);
 }
@@ -399,7 +410,7 @@ Status SilkStore::MakeRoomForWrite(bool force) {
         size_t memtbl_size = mem_->ApproximateMemoryUsage();
         if (!force && (memtbl_size <= memtable_capacity_)) {
             break;
-        } else if (imm_ != nullptr) {
+        } else if ( !imm_.empty()  &&  imm_.size() >= options_.max_imm_num) {
             Log(options_.info_log, "Current memtable full;Compaction ongoing; waiting...\n");
             background_work_finished_signal_.Wait();
         } else {
@@ -415,25 +426,28 @@ Status SilkStore::MakeRoomForWrite(bool force) {
             logfile_ = lfile;
             logfile_number_ = new_log_number;
             log_ = new log::Writer(lfile);
-            imm_ = mem_;
-            has_imm_.Release_Store(imm_);
+            imm_.push_back(mem_);
+            has_imm_.Release_Store(imm_.back());
             size_t old_memtable_capacity = memtable_capacity_;
             size_t new_memtable_capacity =
                     (memtable_capacity_ + segment_manager_->ApproximateSize()) / options_.memtbl_to_L0_ratio;
             new_memtable_capacity = std::min(options_.max_memtbl_capacity,
                                              std::max(options_.write_buffer_size, new_memtable_capacity));
-            Log(options_.info_log, "new memtable capacity %lu\n", new_memtable_capacity);
+            Log(options_.info_log, " ### new memtable capacity %lu\n", new_memtable_capacity);
+            std::cout << "new_memtable_capacity:" << new_memtable_capacity << "\n";
+
             memtable_capacity_ = new_memtable_capacity;
             allowed_num_leaves = std::ceil(new_memtable_capacity / (options_.storage_block_size + 0.0));
             DynamicFilter *dynamic_filter = nullptr;
             if (options_.use_memtable_dynamic_filter) {
-                size_t imm_num_entries = imm_->NumEntries();
+                size_t imm_num_entries = imm_.back()->NumEntries();
                 size_t new_memtable_capacity_num_entries =
                         imm_num_entries * std::ceil(new_memtable_capacity / (old_memtable_capacity + 0.0));
                 assert(new_memtable_capacity_num_entries);
                 dynamic_filter = NewDynamicFilterBloom(new_memtable_capacity_num_entries,
                                                        options_.memtable_dynamic_filter_fp_rate);
             }
+            
             mem_ = new NvmemTable(internal_comparator_, dynamic_filter,
                         nvm_manager_->allocate( new_memtable_capacity + 1000));
             mem_->Ref();
@@ -477,7 +491,7 @@ void SilkStore::MaybeScheduleCompaction() {
         // DB is being deleted; no more background compactions
     } else if (!bg_error_.ok()) {
         // Already got an error; no more changes
-    } else if (imm_ == nullptr &&
+    } else if ( imm_.empty()  &&
                manual_compaction_ == nullptr) {
         // No work to be done
     } else {
@@ -627,8 +641,8 @@ bool SilkStore::GetProperty(const Slice &property, std::string *value) {
     } else if (property.ToString() == "silkstore.searches_in_memtable") {
         MutexLock g(&mutex_);
         size_t res = mem_->Searches();
-        if (imm_) {
-            res += imm_->Searches();
+        if (!imm_.empty()) {
+            res += imm_.back()->Searches();
         }
         *value = std::to_string(res);
         return true;
@@ -671,7 +685,6 @@ bool SilkStore::GetProperty(const Slice &property, std::string *value) {
 Status SilkStore::Get(const ReadOptions &options,
                       const Slice &key,
                       std::string *value) {
-
     Status s;
     MutexLock l(&mutex_);
     SequenceNumber snapshot;
@@ -681,23 +694,31 @@ Status SilkStore::Get(const ReadOptions &options,
     } else {
         snapshot = max_sequence_;
     }
-    //fprintf(stderr, "Get key: %s, seqnum: %u\n", key.ToString().c_str(), snapshot);
     NvmemTable *mem = mem_;
-    NvmemTable *imm = imm_;
     mem->Ref();
-    if (imm != nullptr) imm->Ref();
-
-
+   if (!imm_.empty()) {
+        for(auto it : imm_){
+           it->Ref();
+        }
+    }           
     // Unlock while reading from files and memtables
     {
         mutex_.Unlock();
         // First look in the memtable, then in the immutable memtable (if any).
         LookupKey lkey(key, snapshot);
+        bool find = false;
         if (mem->Get(lkey, value, &s)) {
             // Done
-        } else if (imm != nullptr && imm->Get(lkey, value, &s)) {
-            // Done
-        } else {
+           find = true;
+        } else if (!imm_.empty()) {
+            for(auto it = imm_.rbegin() ;it != imm_.rend(); it++){
+                 if ((*it)->Get(lkey, value, &s)){
+                     find = true;
+                     break;
+                 }
+            }            
+        }
+        if (!find) {
             s = leaf_store_->Get(options, lkey, value, stat_store_);
         }
         mutex_.Lock();
@@ -707,9 +728,14 @@ Status SilkStore::Get(const ReadOptions &options,
 //        MaybeScheduleCompaction();
 //    }
     mem->Unref();
-    if (imm != nullptr) imm->Unref();
+    if (!imm_.empty()) {
+        for(auto it : imm_){
+           it->Unref();
+        }
+    }           
     return s;
 }
+
 
 // REQUIRES: Writer list must be non-empty
 // REQUIRES: First writer must have a non-null batch
@@ -1460,7 +1486,8 @@ Status SilkStore::MakeRoomInLeafLayer(bool force) {
             }
         }
 
-        //fprintf(stderr, "avg runsize %d, self compactions %d, num_splits %d, num_leaves %d, memtable size %lu, segments size %lu\n", imm_->ApproximateMemoryUsage() / (num_leaves == 0 ? 1 : num_leaves), self_compaction, num_splits, (num_leaves == 0 ? 1 : num_leaves), imm_->ApproximateMemoryUsage(), segment_manager_->ApproximateSize());
+        //fprintf(stderr, "avg runsize %d, self compactions %d, num_splits %d, num_leaves %d, 
+        // memtable size %lu, segments size %lu\n", imm_->ApproximateMemoryUsage() / (num_leaves == 0 ? 1 : num_leaves), self_compaction, num_splits, (num_leaves == 0 ? 1 : num_leaves), imm_->ApproximateMemoryUsage(), segment_manager_->ApproximateSize());
 
         return s;
     }
@@ -1468,8 +1495,9 @@ Status SilkStore::MakeRoomInLeafLayer(bool force) {
 
 static int num_compactions = 0;
 
-Status SilkStore::DoCompactionWork(WriteBatch &leaf_index_wb) {
+Status SilkStore::DoCompactionWork(WriteBatch &leaf_index_wb, NvmemTable* imm) {
     mutex_.Unlock();
+    
     ReadOptions ro;
     ro.snapshot = leaf_index_->GetSnapshot();
 
@@ -1484,15 +1512,13 @@ Status SilkStore::DoCompactionWork(WriteBatch &leaf_index_wb) {
     int num_leaves_snap = (num_leaves == 0 ? 1 : num_leaves);
     int num_splits = 0;
     iit->SeekToFirst();
-    std::unique_ptr<Iterator> mit(imm_->NewIterator());
+    std::unique_ptr<Iterator> mit(imm->NewIterator());
     mit->SeekToFirst();
     std::string buf, buf2;
     uint32_t run_no;
     Status s;
 
     GroupedSegmentAppender grouped_segment_appender(1, segment_manager_, options_);
-
-
     Slice next_leaf_max_key;
     Slice next_leaf_index_value;
     Slice leaf_max_key;
@@ -1501,19 +1527,15 @@ Status SilkStore::DoCompactionWork(WriteBatch &leaf_index_wb) {
             next_leaf_max_key = iit->key();
             next_leaf_index_value = iit->value();
         }
-
         Slice leaf_max_key = next_leaf_max_key;
         LeafIndexEntry leaf_index_entry(next_leaf_index_value);
-
         // Record the data read from leaf_index as well
         stats_.Add(iit->key().size() + iit->value().size(), 0);
-
         SegmentBuilder *seg_builder = nullptr;
         bool switched_segment = false;
         s = grouped_segment_appender.MakeRoomForGroupAndGetBuilder(0, &seg_builder, switched_segment);
         if (!s.ok())
             return s;
-
         if (switched_segment && leaf_index_wb.ApproximateSize() > kLeafIndexWriteBufferMaxSize) {
             // If all previous segments are built successfully and
             // the leaf_index write buffer exceeds the threshold,
@@ -1525,17 +1547,16 @@ Status SilkStore::DoCompactionWork(WriteBatch &leaf_index_wb) {
         }
 
         uint32_t seg_id = seg_builder->SegmentId();
-
-
         assert(seg_builder->RunStarted() == false);
-
         int minirun_key_cnt = 0;
         // Build up a minirun of key value payloads
         while (mit->Valid()) {
             Slice imm_internal_key = mit->key();
             ParsedInternalKey parsed_internal_key;
+         //   std::cout << "debug parsed_internal_key " << imm_internal_key.ToString() << " ";
+
             if (!ParseInternalKey(imm_internal_key, &parsed_internal_key)) {
-                s = Status::InvalidArgument("error parsing key from immutable table during compaction");
+                s = Status::InvalidArgument("error parsing key from immutable table 1 during compaction");
                 return s;
             }
             if (this->user_comparator()->Compare(parsed_internal_key.user_key, leaf_max_key) > 0) {
@@ -1557,8 +1578,6 @@ Status SilkStore::DoCompactionWork(WriteBatch &leaf_index_wb) {
 
             mit->Next();
         }
-
-
         stat_store_.UpdateWriteHotness(leaf_max_key.ToString(), minirun_key_cnt);
 
         if (seg_builder->RunStarted()) {
@@ -1625,16 +1644,20 @@ Status SilkStore::DoCompactionWork(WriteBatch &leaf_index_wb) {
         assert(seg_builder->RunStarted() == false);
         s = seg_builder->StartMiniRun();
         if (!s.ok()) {
-            fprintf(stderr, "%s", s.ToString().c_str());
+            fprintf(stderr,"%s", s.ToString().c_str());
             return s;
         }
         size_t bytes = 0;
         int minirun_key_cnt = 0;
         while (mit->Valid()) {
+            
+           // imm_->print();
+
             Slice imm_internal_key = mit->key();
             ParsedInternalKey parsed_internal_key;
-            if (!ParseInternalKey(mit->key(), &parsed_internal_key)) {
-                s = Status::InvalidArgument("error parsing key from immutable table during compaction");
+           // std::cout << "debug parsed_internal_key " << imm_internal_key.ToString() << " ";
+            if (!ParseInternalKey(mit->key(), &parsed_internal_key)) { 
+                s = Status::InvalidArgument("error parsing key from immutable table 2 during compaction");
                 fprintf(stderr,"%s", s.ToString().c_str());
                 return s;
             }
@@ -1671,8 +1694,6 @@ Status SilkStore::DoCompactionWork(WriteBatch &leaf_index_wb) {
         stat_store_.NewLeaf(leaf_max_key.ToString());
         stat_store_.UpdateWriteHotness(leaf_max_key.ToString(), minirun_key_cnt);
     }
-    //fprintf(stderr, "Background compaction finished, last segment %d\n", seg_id);
-    //fprintf(stderr, "avg runsize %d, self compactions %d, num_splits %d, num_leaves %d, memtable size %lu, segments size %lu\n", imm_->ApproximateMemoryUsage() / num_leaves_snap, self_compaction, num_splits, num_leaves_snap, imm_->ApproximateMemoryUsage(), segment_manager_->ApproximateSize());
     ++num_compactions;
     return s;
 }
@@ -1680,6 +1701,10 @@ Status SilkStore::DoCompactionWork(WriteBatch &leaf_index_wb) {
 // Perform a merge between leaves and the immutable memtable.
 // Single threaded version.
 void SilkStore::BackgroundCompaction() {
+
+ while(!imm_.empty()){
+    std::cout << "BackgroundCompaction imm's nums: " << imm_.size() << "\n";
+    auto it = imm_.front();
     auto t_start_compaction = env_->NowMicros();
     DeferCode c([this, t_start_compaction]() { stats_.AddTimeCompaction(env_->NowMicros() - t_start_compaction); });
     mutex_.Unlock();
@@ -1700,12 +1725,10 @@ void SilkStore::BackgroundCompaction() {
         stats_.AddTimeGC(env_->NowMicros() - t_start_gc);
     }
     mutex_.Lock();
-
     if (!s.ok()) {
         bg_error_ = s;
         return;
     }
-
     if (full_compacted == false) {
         s = MakeRoomInLeafLayer();
         if (!s.ok()) {
@@ -1713,11 +1736,8 @@ void SilkStore::BackgroundCompaction() {
             return;
         }
     }
-
-
     WriteBatch leaf_index_wb;
-    s = DoCompactionWork(leaf_index_wb);
-
+    s = DoCompactionWork(leaf_index_wb,it);
     if (!s.ok()) {
         Log(options_.info_log, "DoCompactionWork failed: %s\n", s.ToString().c_str());
         bg_error_ = s;
@@ -1735,10 +1755,12 @@ void SilkStore::BackgroundCompaction() {
         // Save a new Current File
         SetCurrentFileWithLogNumber(env_, dbname_, logfile_number_);
         // Commit to the new state
-
-        imm_->Unref();
-        imm_ = nullptr;
+        nvm_manager_->free();
+       // std::cout << "imm_ compaction finished !\n";
+        it->Unref();
+        imm_.pop_front();
         has_imm_.Release_Store(nullptr);
+    }
     }
 }
 

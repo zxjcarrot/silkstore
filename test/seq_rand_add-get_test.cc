@@ -230,7 +230,7 @@ void RandomWrite(){
 }
 
 int main(){
-        SequentialWrite();
+  //      SequentialWrite();
         RandomWrite();
         return 0;
 }

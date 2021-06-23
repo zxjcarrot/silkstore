@@ -11,6 +11,7 @@
 
 #include <deque>
 #include <set>
+#include <list>
 
 #include "db/dbformat.h"
 #include "db/log_writer.h"
@@ -131,7 +132,9 @@ private:
     port::AtomicPointer shutting_down_;
     port::CondVar background_work_finished_signal_ GUARDED_BY(mutex_);
     NvmemTable *mem_;
-    NvmemTable *imm_ GUARDED_BY(mutex_);  // Memtable being compacted
+    std::list< NvmemTable * > imm_ GUARDED_BY(mutex_);  // Memtable being compacted
+    
+//    NvmemTable *imm_ GUARDED_BY(mutex_);  // Memtable being compacted
 
     port::AtomicPointer has_imm_;       // So bg thread can detect non-null imm_
     WritableFile *logfile_;
@@ -213,7 +216,7 @@ private:
 
     void MaybeScheduleCompaction();
 
-    Status DoCompactionWork(WriteBatch &leaf_index_wb);
+    Status DoCompactionWork(WriteBatch &leaf_index_wb, NvmemTable*  imm);
 
     Status OptimizeLeaf();
 
