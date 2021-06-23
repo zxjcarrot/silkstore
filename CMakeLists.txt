@@ -286,6 +286,7 @@ if(LEVELDB_BUILD_TESTS)
 
     add_test(NAME "${test_target_name}" COMMAND "${test_target_name}")
   endfunction(leveldb_test)
+  leveldb_test("${PROJECT_SOURCE_DIR}/test/silk.cpp")
 
   leveldb_test("${PROJECT_SOURCE_DIR}/db/c_test.c")
   leveldb_test("${PROJECT_SOURCE_DIR}/db/fault_injection_test.cc")

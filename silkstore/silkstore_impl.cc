@@ -19,7 +19,7 @@
 #include "silkstore/silkstore_iter.h"
 #include "silkstore/util.h"
 #include "util/histogram.h"
-
+#include <cmath>
 int runs_searched = 0;
 namespace leveldb {
 
