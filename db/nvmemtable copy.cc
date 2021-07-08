@@ -41,7 +41,19 @@ NvmemTable::NvmemTable(const InternalKeyComparator& cmp, DynamicFilter * dynamic
       nvmem(nvmem),
       nvmlog(nvmlog),      
       memory_usage_(0) {
-        initMagicNum(magicNum);
+        initMagicNum(buf);
+      } 
+
+NvmemTable::NvmemTable(const InternalKeyComparator& cmp, DynamicFilter * dynamic_filter, 
+    silkstore::Nvmem* nvmem )
+    : comparator_(cmp),
+      refs_(0),
+      num_entries_(0),
+      searches_(0),
+      dynamic_filter(dynamic_filter),
+      nvmem(nvmem),
+      memory_usage_(0) {
+        initMagicNum(buf);
       } 
 
 NvmemTable::~NvmemTable() {
@@ -81,35 +93,57 @@ static const char* EncodeKey(std::string* scratch, const Slice& target) {
 class NvmemTableIterator: public Iterator {
  public:
   explicit NvmemTableIterator(NvmemTable::Index* index) : index(index) { 
-    iter_ = index->begin_unsafe();
+    iter_ = index->begin();
   }
-  virtual bool Valid() const { return iter_.valid() ; }
-  virtual void Seek(const Slice& k) { iter_ = index->seek(k.ToString()); }
-  virtual void SeekToFirst() { iter_ = index->begin_unsafe(); }
+  virtual bool Valid() const { return iter_ != index->end() && iter_->second > 0 ; }
+  virtual void Seek(const Slice& k) { iter_ = index->find(k.ToString()); }
+  virtual void SeekToFirst() { iter_ = index->begin(); }
   virtual void SeekToLast() {  
       fprintf(stderr, "MemTableIterator's SeekToLast() is not implemented !");  
       assert(true);
   }
   virtual void Next() {  ++iter_; }
-  virtual void Prev() { 
+  virtual void Prev() { --iter_;
     /* iter_.Prev(); */ 
       fprintf(stderr, "MemTableIterator's Prev() is not implemented ! \n");  
       sleep(111);
       assert(true);
   }
   virtual Slice key() const {  
-     return NvmGetLengthPrefixedSlice((char *)(iter_.value())); 
+   //  return NvmGetLengthPrefixedSlice((char *)(iter_->second)); 
+    return Slice(iter_->first);
   }
   virtual Slice value() const {
-    Slice key_slice = NvmGetLengthPrefixedSlice((char *)(iter_.value()));
-    return NvmGetLengthPrefixedSlice(key_slice.data() + key_slice.size());
+  /*   Slice key_slice = NvmGetLengthPrefixedSlice((char *)(iter_->second ));
+    return NvmGetLengthPrefixedSlice(key_slice.data() + key_slice.size()); */
+  
+
+    uint64_t metadata;
+    memcpy( &metadata, (char *)iter_->second, 8);
+    int32_t val_size = metadata & 0xFFFF;
+    metadata >>= 32;
+    int16_t keyType =  metadata & 0xFF;
+    metadata >>= 16;
+    int16_t key_size = metadata & 0xFF;
+    switch (static_cast<ValueType>(keyType)) {
+        case kTypeValue: {         
+          return Slice((char *)(iter_->second + key_size + 8), val_size);
+        }
+        case kTypeDeletion:
+         // *s = Status::NotFound();
+          return Slice("Deleted !");
+    }
+    return  Slice("Error !");
   }
+  
+  
+  
 
   virtual Status status() const { return Status::OK(); }
 
  private:
   NvmemTable::Index* index;
-  NvmemTable::Index::unsafe_iterator iter_;
+  NvmemTable::Index::iterator iter_;
 
   // No copying allowed
   NvmemTableIterator(const NvmemTableIterator&);
@@ -129,9 +163,14 @@ void NvmemTable::Add(SequenceNumber s, ValueType type,
   //  key bytes    : char[internal_key.size()]
   //  value_size   : varint32 of value.size()
   //  value bytes  : char[value.size()]
-  size_t key_size = key.size();
-  size_t val_size = value.size();
-  size_t internal_key_size = key_size + 8;
+  int16_t key_size = key.size();
+  int32_t val_size = value.size();
+  uint64_t metadata = key_size;
+  metadata <<= 16;
+  metadata += type;
+  metadata <<= 32;    
+  metadata += val_size;
+ /*  size_t internal_key_size = key_size + 8;
   const size_t encoded_len =
       VarintLength(internal_key_size) + internal_key_size +
       VarintLength(val_size) + val_size;
@@ -142,31 +181,60 @@ void NvmemTable::Add(SequenceNumber s, ValueType type,
   p += 8;
   p = EncodeVarint32(p, val_size);
   memcpy(p, value.data(), val_size);
-  assert(p + val_size == buf + encoded_len); 
-  memcpy(buf + encoded_len, magicNum, 4);
-  uint64_t address = nvmem->insert(buf, encoded_len + 4);
-  index_.insert(key.ToString(), address);
-  // nvmlog->append(address);
+  assert(p + val_size == buf + encoded_len);  */
+  memcpy(buf,&metadata,8);
+  memcpy(buf + 8,key.data(),key_size);
+  memcpy(buf + key_size + 8,value.data(),val_size);
+  uint64_t address = nvmem->insert(buf, key_size + val_size + 8);
+  index_[key.ToString()] = address;
+//  nvmlog->append(address);
+/*   char membuf[8];
+  memcmp( membuf, (char *)address, 8);
+  for(int i  = 0; i < 8; i++){
+    printf("%d", (int)membuf[i]);
+  }
+ */
 
   if (dynamic_filter)
     dynamic_filter->Add(key);
   ++num_entries_;
+
   // update memory_usage_ to recode nvm's usage size
-  memory_usage_ += encoded_len + 4;
+  memory_usage_ += key_size + val_size + 8;
 }
 
+
 bool NvmemTable::Get(const LookupKey& key, std::string* value, Status* s) {
+  
   if (dynamic_filter && !dynamic_filter->KeyMayMatch(key.user_key()))
     return false;
-
+    
   ++searches_;
   Slice memkey = key.user_key();
-  
-  uint64_t address = -1;
-
-  bool suc = index_.lookup(memkey.ToString(), address);
-  
+  bool suc = index_.count(memkey.ToString()) ;
   if (suc) {
+    uint64_t address =  index_[memkey.ToString()];
+    uint64_t metadata;
+    memcpy( &metadata, (char *)address, 8);
+    int32_t val_size = metadata & 0xFFFF;
+    metadata >>= 32;
+    int16_t keyType =  metadata & 0xFF;
+    metadata >>= 16;
+    int16_t key_size = metadata & 0xFF;
+    switch (static_cast<ValueType>(keyType)) {
+        case kTypeValue: {
+          Slice v = Slice((char *)address + key_size + 8, val_size);
+          value->assign(v.data(), v.size());     
+          return true;
+        }
+        case kTypeDeletion:
+
+          *s = Status::NotFound(Slice("Deleted !"));
+          return true;
+      }
+  }
+  return false;
+
     // entry format is:
     //    magicNum
     //    klength  varint32
@@ -177,7 +245,7 @@ bool NvmemTable::Get(const LookupKey& key, std::string* value, Status* s) {
     // Check that it belongs to same user key.  We do not check the
     // sequence number since the Seek() call above should have skipped
     // all entries with overly large sequence numbers.
-    uint32_t key_length;
+    /* uint32_t key_length;
     const char* key_ptr = GetVarint32Ptr((char *) (address), 
         (char *) (address + 5), &key_length);  // 
                                               //  +5: we assume "p" is not corrupted
@@ -199,6 +267,6 @@ bool NvmemTable::Get(const LookupKey& key, std::string* value, Status* s) {
     }
   }
   *s = Status::NotFound(Slice());
-  return false;
+  return false; */
 }
 }  // namespace leveldb

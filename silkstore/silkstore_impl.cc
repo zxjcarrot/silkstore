@@ -99,7 +99,8 @@ SilkStore::SilkStore(const Options &raw_options, const std::string &dbname)
           background_compaction_scheduled_(false),
           leaf_optimization_func_([]() {}),
           manual_compaction_(nullptr) {
-    nvm_manager_ = new NvmManager(raw_options.nvm_file, raw_options.nvm_size);                  
+    nvm_manager_ = new NvmManager(raw_options.nvm_file, raw_options.nvm_size);           
+    nvm_log_ = nvm_manager_->initLog();      
     has_imm_.Release_Store(nullptr);
 }
 
@@ -224,7 +225,8 @@ Status SilkStore::RecoverLogFile(uint64_t log_number, SequenceNumber *max_sequen
         WriteBatchInternal::SetContents(&batch, record);
 
         if (mem == nullptr) {
-            mem = new NvmemTable(internal_comparator_, nullptr, nvm_manager_->allocate(MB * 100));
+            nvm_log_->reset();            
+            mem = new NvmemTable(internal_comparator_, nullptr, nvm_manager_->allocate(MB * 100), nvm_log_);
             mem->Ref();
         }
         status = WriteBatchInternal::InsertInto(&batch, mem);
@@ -258,7 +260,8 @@ Status SilkStore::RecoverLogFile(uint64_t log_number, SequenceNumber *max_sequen
             mem = nullptr;
         } else {
             // mem can be nullptr if lognum exists but was empty.
-            mem_ = new NvmemTable(internal_comparator_, nullptr, nvm_manager_->allocate(MB * 100));
+            nvm_log_->reset();            
+            mem_ = new NvmemTable(internal_comparator_, nullptr, nvm_manager_->allocate(MB * 100), nvm_log_);
             mem_->Ref();
         }
     }
@@ -293,7 +296,8 @@ Status SilkStore::Recover() {
     s = ReadFileToString(env_, CurrentFilename(dbname_), &current_content);
     if (s.IsNotFound()) {
         // new db
-        mem_ = new NvmemTable(internal_comparator_, nullptr, nvm_manager_->allocate(MB * 100));
+        nvm_log_->reset();            
+        mem_ = new NvmemTable(internal_comparator_, nullptr, nvm_manager_->allocate(MB * 100), nvm_log_);
         mem_->Ref();
         SequenceNumber log_start_seq_num = max_sequence_ = 1;
         WritableFile *lfile = nullptr;
@@ -347,13 +351,19 @@ Status SilkStore::TEST_CompactMemTable() {
 }
 
 // Convenience methods
-Status SilkStore::Put(const WriteOptions &o, const Slice &key, const Slice &val) {
+Status SilkStore::Put(const WriteOptions &opt, const Slice &key, const Slice &value) {
     //fprintf(stderr, "put key: %s, seqnum: %u\n", key.ToString().c_str(), max_sequence_);
-    return DB::Put(o, key, val);
+   // return DB::Put(o, key, val);
+    WriteBatch batch;
+    batch.Put(key, value);
+    return Write(opt, &batch);
 }
 
 Status SilkStore::Delete(const WriteOptions &options, const Slice &key) {
-    return DB::Delete(options, key);
+   // return DB::Delete(options, key);
+    WriteBatch batch;
+    batch.Delete(key);
+    return Write(options, &batch);
 }
 
 static void SilkStoreNewIteratorCleanup(void *arg1, void *arg2) {
@@ -410,8 +420,9 @@ Status SilkStore::MakeRoomForWrite(bool force) {
         size_t memtbl_size = mem_->ApproximateMemoryUsage();
         if (!force && (memtbl_size <= memtable_capacity_)) {
             break;
-        } else if ( !imm_.empty()  &&  imm_.size() >= options_.max_imm_num) {
+        } else if ( !imm_.empty()  &&  imm_.size() >= options_.max_imm_num * 5) {
             Log(options_.info_log, "Current memtable full;Compaction ongoing; waiting...\n");
+            std::cout<< "Current memtable full;Compaction ongoing; waiting...\n";
             background_work_finished_signal_.Wait();
         } else {
             // Attempt to switch to a new memtable and trigger compaction of old
@@ -434,7 +445,7 @@ Status SilkStore::MakeRoomForWrite(bool force) {
             new_memtable_capacity = std::min(options_.max_memtbl_capacity,
                                              std::max(options_.write_buffer_size, new_memtable_capacity));
             Log(options_.info_log, " ### new memtable capacity %lu\n", new_memtable_capacity);
-            std::cout << "new_memtable_capacity:" << new_memtable_capacity << "\n";
+         //   std::cout << "new_memtable_capacity:" << new_memtable_capacity << "\n";
 
             memtable_capacity_ = new_memtable_capacity;
             allowed_num_leaves = std::ceil(new_memtable_capacity / (options_.storage_block_size + 0.0));
@@ -447,9 +458,9 @@ Status SilkStore::MakeRoomForWrite(bool force) {
                 dynamic_filter = NewDynamicFilterBloom(new_memtable_capacity_num_entries,
                                                        options_.memtable_dynamic_filter_fp_rate);
             }
-            
+            nvm_log_->reset();
             mem_ = new NvmemTable(internal_comparator_, dynamic_filter,
-                        nvm_manager_->allocate( new_memtable_capacity + 1000));
+                        nvm_manager_->allocate( new_memtable_capacity + 1000), nvm_log_);
             mem_->Ref();
             force = false;   // Do not force another compaction if have room
             MaybeScheduleCompaction();

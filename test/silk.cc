@@ -108,7 +108,6 @@ void SequentialWrite(){
         }
         std::cout << " @@@@@@@@@ PASS #########\n";
         std::cout << " ######### Begin Sequential Get Test ######## \n";
-
         for (int i = 0; i < kNumOps; i++) {
                 std::string key = keys[i % kNumKVs];
                 std::string res;
@@ -145,8 +144,6 @@ void SequentialWrite(){
 
 
 void RandomWrite(){
-
-
         leveldb::DB* db_ = nullptr;
         leveldb::Options options;
         options.create_if_missing = true;
@@ -195,10 +192,8 @@ void RandomWrite(){
     }
 
     std::cout << " @@@@@@@@@ PASS #########\n";
-
     std::cout << " ######### Begin Random Get Test ######## \n";
 
-   // Reopen(nullptr);
     for (int i = 0; i < kNumOps; ++i) {
         int idx = rand() % kNumKVs;
         string res;

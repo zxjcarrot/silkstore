@@ -19,6 +19,8 @@
 #include "leveldb/filter_policy.h"
 
 #include "nvm/nvmem.h"
+#include "nvm/nvmlog.h"
+#include "nvm/btree.h"
 
 namespace leveldb {
 
@@ -31,7 +33,12 @@ class NvmemTable {
   // MemTables are reference counted.  The initial reference count
   // is zero and the caller must call Ref() at least once.
   explicit NvmemTable(const InternalKeyComparator& comparator, 
-      DynamicFilter * dynamic_filter /* = nullptr */, silkstore::Nvmem *nvmem /* = nullptr */ );
+      DynamicFilter * dynamic_filter, silkstore::Nvmem *nvmem, silkstore::NvmLog *nvmlog);
+
+
+ // explicit NvmemTable(const InternalKeyComparator& comparator, 
+ //     DynamicFilter * dynamic_filter, silkstore::Nvmem *nvmem);
+
 
   // Increase reference count.
   void Ref() { ++refs_; }
@@ -78,7 +85,7 @@ class NvmemTable {
   size_t Searches() const;
 private:
   ~NvmemTable();  // Private since only Unref() should be used to delete it
-//private:
+// private:
   struct KeyComparator {
     const InternalKeyComparator comparator;
     explicit KeyComparator(const InternalKeyComparator& c) : comparator(c) { }
@@ -87,16 +94,18 @@ private:
   friend class NvmemTableIterator;
   friend class NvmemTableBackwardIterator;
 
-  typedef std::map<std::string ,std::pair<uint64_t, uint32_t> > Index;
 
+ typedef leveldb::silkstore::BTree<std::string,uint64_t> Index;
+//  typedef std::map<std::string ,uint64_t > ;
 
-  
   KeyComparator comparator_;
   int refs_;
   Index index_;
   silkstore::Nvmem *nvmem;
+  silkstore::NvmLog *nvmlog;
   // buf's first 4 bytes magic number 0xCAFEBABE used to recover data 
   char buf[5120];
+  char magicNum[4];
   size_t num_entries_;
   size_t searches_;
   size_t memory_usage_;

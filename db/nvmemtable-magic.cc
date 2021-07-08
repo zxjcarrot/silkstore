@@ -81,27 +81,27 @@ static const char* EncodeKey(std::string* scratch, const Slice& target) {
 class NvmemTableIterator: public Iterator {
  public:
   explicit NvmemTableIterator(NvmemTable::Index* index) : index(index) { 
-    iter_ = index->begin_unsafe();
+    iter_ = index->begin();
   }
-  virtual bool Valid() const { return iter_.valid() ; }
-  virtual void Seek(const Slice& k) { iter_ = index->seek(k.ToString()); }
-  virtual void SeekToFirst() { iter_ = index->begin_unsafe(); }
+  virtual bool Valid() const { return iter_ != index->end() && iter_->second > 0 ; }
+  virtual void Seek(const Slice& k) { iter_ = index->find(k.ToString()); }
+  virtual void SeekToFirst() { iter_ = index->begin(); }
   virtual void SeekToLast() {  
       fprintf(stderr, "MemTableIterator's SeekToLast() is not implemented !");  
       assert(true);
   }
   virtual void Next() {  ++iter_; }
-  virtual void Prev() { 
+  virtual void Prev() { --iter_;
     /* iter_.Prev(); */ 
       fprintf(stderr, "MemTableIterator's Prev() is not implemented ! \n");  
       sleep(111);
       assert(true);
   }
   virtual Slice key() const {  
-     return NvmGetLengthPrefixedSlice((char *)(iter_.value())); 
+     return NvmGetLengthPrefixedSlice((char *)(iter_->second)); 
   }
   virtual Slice value() const {
-    Slice key_slice = NvmGetLengthPrefixedSlice((char *)(iter_.value()));
+    Slice key_slice = NvmGetLengthPrefixedSlice((char *)(iter_->second ));
     return NvmGetLengthPrefixedSlice(key_slice.data() + key_slice.size());
   }
 
@@ -109,7 +109,7 @@ class NvmemTableIterator: public Iterator {
 
  private:
   NvmemTable::Index* index;
-  NvmemTable::Index::unsafe_iterator iter_;
+  NvmemTable::Index::iterator iter_;
 
   // No copying allowed
   NvmemTableIterator(const NvmemTableIterator&);
@@ -145,7 +145,7 @@ void NvmemTable::Add(SequenceNumber s, ValueType type,
   assert(p + val_size == buf + encoded_len); 
   memcpy(buf + encoded_len, magicNum, 4);
   uint64_t address = nvmem->insert(buf, encoded_len + 4);
-  index_.insert(key.ToString(), address);
+  index_[key.ToString()] = address;
   // nvmlog->append(address);
 
   if (dynamic_filter)
@@ -161,12 +161,11 @@ bool NvmemTable::Get(const LookupKey& key, std::string* value, Status* s) {
 
   ++searches_;
   Slice memkey = key.user_key();
-  
-  uint64_t address = -1;
 
-  bool suc = index_.lookup(memkey.ToString(), address);
+  bool suc = index_.count(memkey.ToString()) ;
   
   if (suc) {
+    uint64_t address =  index_[memkey.ToString()];
     // entry format is:
     //    magicNum
     //    klength  varint32

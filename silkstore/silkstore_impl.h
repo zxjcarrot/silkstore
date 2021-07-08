@@ -26,6 +26,7 @@
 
 
 #include "nvm/nvmem.h"
+#include "nvm/nvmlog.h"
 #include "nvm/nvmmanager.h"
 #include "db/nvmemtable.h"
 
@@ -146,7 +147,7 @@ private:
     size_t allowed_num_leaves = 0;
     size_t num_leaves = 0;
     silkstore::NvmManager *nvm_manager_;
-
+    silkstore::NvmLog *nvm_log_; 
     SegmentManager *segment_manager_;
     // Queue of writers.
     std::deque<Writer *> writers_ GUARDED_BY(mutex_);
