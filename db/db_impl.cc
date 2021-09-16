@@ -1120,7 +1120,10 @@ int64_t DBImpl::TEST_MaxNextLevelOverlappingBytes() {
   MutexLock l(&mutex_);
   return versions_->MaxNextLevelOverlappingBytes();
 }
-
+Status DBImpl::NvmWrite(const WriteOptions& options, NvmWriteBatch* updates){
+  std::cout<< "DBImpl::NvmWrite Not Support !\n";
+  return Status::NotSupported("Err");
+}
 Status DBImpl::Get(const ReadOptions& options,
                    const Slice& key,
                    std::string* value) {

@@ -12,7 +12,7 @@
 constexpr size_t kSegmentFileSizeThreshold = 64 * 1024 * 1024;
 constexpr size_t kLeafDataSizeThreshold = 4 * 1024 * 1024;
 constexpr size_t kStorageBlocKSize = 4096;
-constexpr size_t kLeafMaxRunNum = 7;
+constexpr size_t kLeafMaxRunNum = 1;
 namespace leveldb {
 Options::Options()
     : comparator(BytewiseComparator()),

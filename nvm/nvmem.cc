@@ -6,7 +6,7 @@ namespace leveldb{
 namespace silkstore{
 
 // insert date into nvm
-uint64_t Nvmem::insert(char* value, int len){
+uint64_t Nvmem::insert(const char* value, int len){
     // Not enough memory assert
     if(index_ + len >= size_){
        fprintf(stderr, " nvm memory is full!  \

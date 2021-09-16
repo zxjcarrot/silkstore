@@ -14,7 +14,7 @@
 #include "leveldb/write_batch.h"
 #include "table/merger.h"
 #include "util/mutexlock.h"
-
+#include "leveldb/nvm_write_batch.h"
 #include "silkstore/silkstore_impl.h"
 #include "silkstore/silkstore_iter.h"
 #include "silkstore/util.h"
@@ -351,12 +351,12 @@ Status SilkStore::TEST_CompactMemTable() {
 }
 
 // Convenience methods
-Status SilkStore::Put(const WriteOptions &opt, const Slice &key, const Slice &value) {
-    //fprintf(stderr, "put key: %s, seqnum: %u\n", key.ToString().c_str(), max_sequence_);
+Status SilkStore::Put(const WriteOptions &option, const Slice &key, const Slice &value) {
+   // fprintf(stderr, "put key: %s, seqnum: %lu\n", key.ToString().c_str(), max_sequence_);
    // return DB::Put(o, key, val);
     WriteBatch batch;
     batch.Put(key, value);
-    return Write(opt, &batch);
+    return Write(option, &batch);
 }
 
 Status SilkStore::Delete(const WriteOptions &options, const Slice &key) {
@@ -437,6 +437,69 @@ Status SilkStore::MakeRoomForWrite(bool force) {
             logfile_ = lfile;
             logfile_number_ = new_log_number;
             log_ = new log::Writer(lfile);
+
+            imm_.push_back(mem_);
+            has_imm_.Release_Store(imm_.back());            
+            
+            size_t old_memtable_capacity = memtable_capacity_;
+            size_t new_memtable_capacity =
+                    (memtable_capacity_ + segment_manager_->ApproximateSize()) / options_.memtbl_to_L0_ratio;
+            new_memtable_capacity = std::min(options_.max_memtbl_capacity,
+                                             std::max(options_.write_buffer_size, new_memtable_capacity));
+            Log(options_.info_log, " ### new memtable capacity %lu\n", new_memtable_capacity);
+         //   std::cout << "new_memtable_capacity:" << new_memtable_capacity << "\n";
+
+            memtable_capacity_ = new_memtable_capacity;
+            allowed_num_leaves = std::ceil(new_memtable_capacity / (options_.storage_block_size + 0.0));
+            DynamicFilter *dynamic_filter = nullptr;
+            if (options_.use_memtable_dynamic_filter) {
+                size_t imm_num_entries = imm_.back()->NumEntries();
+                size_t new_memtable_capacity_num_entries =
+                        imm_num_entries * std::ceil(new_memtable_capacity / (old_memtable_capacity + 0.0));
+                assert(new_memtable_capacity_num_entries);
+                dynamic_filter = NewDynamicFilterBloom(new_memtable_capacity_num_entries,
+                                                       options_.memtable_dynamic_filter_fp_rate);
+            }
+            nvm_log_->reset();
+            mem_ = new NvmemTable(internal_comparator_, dynamic_filter,
+                        nvm_manager_->allocate( new_memtable_capacity + 1000), nvm_log_);
+            mem_->Ref();
+            force = false;   // Do not force another compaction if have room
+            MaybeScheduleCompaction();
+        }
+    }
+
+    return s;
+}
+
+
+
+Status SilkStore::NvmMakeRoomForWrite(bool force) {
+    mutex_.AssertHeld();
+    assert(!nvmwriters_.empty());
+    bool allow_delay = !force;
+    Status s;
+    while (true) {
+        size_t memtbl_size = mem_->ApproximateMemoryUsage();
+        if (!force && (memtbl_size <= memtable_capacity_)) {
+            break;
+        } else if ( !imm_.empty()  &&  imm_.size() >= options_.max_imm_num * 5) {
+            Log(options_.info_log, "Current memtable full;Compaction ongoing; waiting...\n");
+            std::cout<< "Current memtable full;Compaction ongoing; waiting...\n";
+            background_work_finished_signal_.Wait();
+        } else {
+            // Attempt to switch to a new memtable and trigger compaction of old
+            uint64_t new_log_number = max_sequence_;
+            WritableFile *lfile = nullptr;
+            s = env_->NewWritableFile(LogFileName(dbname_, new_log_number), &lfile);
+            if (!s.ok()) {
+                break;
+            }
+            delete log_;
+            delete logfile_;
+            logfile_ = lfile;
+            logfile_number_ = new_log_number;
+            log_ = new log::Writer(lfile);
             imm_.push_back(mem_);
             has_imm_.Release_Store(imm_.back());
             size_t old_memtable_capacity = memtable_capacity_;
@@ -460,7 +523,7 @@ Status SilkStore::MakeRoomForWrite(bool force) {
             }
             nvm_log_->reset();
             mem_ = new NvmemTable(internal_comparator_, dynamic_filter,
-                        nvm_manager_->allocate( new_memtable_capacity + 1000), nvm_log_);
+                        nvm_manager_->allocate( new_memtable_capacity + 10240), nvm_log_);
             mem_->Ref();
             force = false;   // Do not force another compaction if have room
             MaybeScheduleCompaction();
@@ -524,6 +587,102 @@ struct SilkStore::Writer {
 };
 
 
+struct SilkStore::NvmWriter {
+    Status status;
+    NvmWriteBatch *batch;
+    bool sync;
+    bool done;
+    port::CondVar cv;
+    explicit NvmWriter(port::Mutex *mu) : cv(mu) {}
+};
+
+
+
+
+
+Status SilkStore::NvmWrite(const WriteOptions &options, NvmWriteBatch *my_batch) {
+    NvmWriter w(&mutex_);
+    w.batch = my_batch;
+    w.sync = options.sync;
+    w.done = false;
+
+    MutexLock l(&mutex_);
+    nvmwriters_.push_back(&w);
+    while (!w.done && &w != nvmwriters_.front()) {
+        w.cv.Wait();
+    }
+    if (w.done) {
+        return w.status;
+    }
+
+    // May temporarily unlock and wait.
+    Status status = NvmMakeRoomForWrite(my_batch == nullptr);
+    uint64_t last_sequence = max_sequence_;
+    NvmWriter *last_writer = &w;
+    if (status.ok() && my_batch != nullptr) {  // nullptr batch is for compactions
+        NvmWriteBatch *updates = NvmBuildBatchGroup(&last_writer);
+        // updates->SetSequence(last_sequence + 1);
+        // last_sequence += updates->Counter();
+
+        // Add to log and apply to memtable.  We can release the lock
+        // during this phase since &w is currently responsible for logging
+        // and protects against concurrent loggers and concurrent writes
+        // into mem_.
+        {
+            mutex_.Unlock();
+           /*  status = log_->AddRecord(WriteBatchInternal::Contents(updates));
+            bool sync_error = false;
+            if (status.ok() && options.sync) {
+                status = logfile_->Sync();
+                if (!status.ok()) {
+                    sync_error = true;
+                }
+            }
+            if (status.ok()) {
+                status = WriteBatchInternal::InsertInto(updates, mem_);
+            }
+             */
+
+            // Using Nvm to insert data without log
+            status = mem_->AddBatch(updates);
+            
+            mutex_.Lock();
+           /*  if (sync_error) {
+                // The state of the log file is indeterminate: the log record we
+                // just added may or may not show up when the DB is re-opened.
+                // So we force the DB into a mode where all future writes fail.
+                //RecordBackgroundError(status);
+                bg_error_ = status;
+            } */
+        }
+        if (updates == nvm_tmp_batch_) {
+            std::cout<<"nvm_tmp_batch_->Clear()\n";
+            nvm_tmp_batch_->Clear();
+        }
+        max_sequence_ = last_sequence;
+    }
+
+    while (true) {
+        NvmWriter *ready = nvmwriters_.front();
+        nvmwriters_.pop_front();
+        // std::cout << "nvmwriters_.pop_front()\n";
+        if (ready != &w) {
+            ready->status = status;
+            ready->done = true;
+            ready->cv.Signal();
+        }
+        if (ready == last_writer) break;
+    }
+
+    // Notify new head of write queue
+    if (!writers_.empty()) {
+        writers_.front()->cv.Signal();
+    }
+
+    return status;
+}
+
+
 Status SilkStore::Write(const WriteOptions &options, WriteBatch *my_batch) {
     Writer w(&mutex_);
     w.batch = my_batch;
@@ -538,7 +697,6 @@ Status SilkStore::Write(const WriteOptions &options, WriteBatch *my_batch) {
     if (w.done) {
         return w.status;
     }
-
     // May temporarily unlock and wait.
     Status status = MakeRoomForWrite(my_batch == nullptr);
     uint64_t last_sequence = max_sequence_;
@@ -566,8 +724,8 @@ Status SilkStore::Write(const WriteOptions &options, WriteBatch *my_batch) {
                 status = WriteBatchInternal::InsertInto(updates, mem_);
             }
              */
-
             // Using Nvm to insert data without log
+            // status = mem_->AddBatch(updates);
             status = WriteBatchInternal::InsertInto(updates, mem_);
             
             mutex_.Lock();
@@ -579,11 +737,13 @@ Status SilkStore::Write(const WriteOptions &options, WriteBatch *my_batch) {
                 bg_error_ = status;
             } */
         }
-        if (updates == tmp_batch_) tmp_batch_->Clear();
+        if (updates == tmp_batch_) {
+            tmp_batch_->Clear();
+            std::cout<<"tmp_batch_->Clear()\n";
+        }
 
         max_sequence_ = last_sequence;
     }
-
     while (true) {
         Writer *ready = writers_.front();
         writers_.pop_front();
@@ -594,12 +754,10 @@ Status SilkStore::Write(const WriteOptions &options, WriteBatch *my_batch) {
         }
         if (ready == last_writer) break;
     }
-
     // Notify new head of write queue
     if (!writers_.empty()) {
         writers_.front()->cv.Signal();
     }
-
     return status;
 }
 
@@ -797,6 +955,61 @@ WriteBatch *SilkStore::BuildBatchGroup(Writer **last_writer) {
     }
     return result;
 }
+
+
+
+
+// REQUIRES: Writer list must be non-empty
+// REQUIRES: First writer must have a non-null batch
+NvmWriteBatch *SilkStore::NvmBuildBatchGroup(NvmWriter **last_writer) {
+    mutex_.AssertHeld();
+    assert(!nvmwriters_.empty());
+    NvmWriter *first = nvmwriters_.front();
+    NvmWriteBatch *result = first->batch;
+    assert(result != nullptr);
+
+    size_t size = WriteBatchInternal::ByteSize(first->batch);
+
+    // Allow the group to grow up to a maximum size, but if the
+    // original write is small, limit the growth so we do not slow
+    // down the small write too much.
+    size_t max_size = 1 << 20;
+    if (size <= (128 << 10)) {
+        max_size = size + (128 << 10);
+    }
+
+    *last_writer = first;
+    std::deque<NvmWriter *>::iterator iter = nvmwriters_.begin();
+    ++iter;  // Advance past "first"
+    for (; iter != nvmwriters_.end(); ++iter) {
+        NvmWriter *w = *iter;
+        if (w->sync && !first->sync) {
+            // Do not include a sync write into a batch handled by a non-sync write.
+            break;
+        }
+
+        if (w->batch != nullptr) {
+            size += WriteBatchInternal::ByteSize(w->batch);
+            if (size > max_size) {
+                // Do not make batch too big
+                break;
+            }
+            // Append to *result
+            if (result == first->batch) {
+                // Switch to temporary batch instead of disturbing caller's batch
+                result = nvm_tmp_batch_;
+               // assert(WriteBatchInternal::Count(result) == 0);
+              //  assert(result->Counter() == 0);
+                result->Append(first->batch);
+            }
+            result->Append(w->batch);
+            //WriteBatchInternal::Append(result, w->batch);
+        }
+        *last_writer = w;
+    }
+    return result;
+}
+
 
 class GroupedSegmentAppender {
 public:
@@ -1712,6 +1925,26 @@ Status SilkStore::DoCompactionWork(WriteBatch &leaf_index_wb, NvmemTable* imm) {
 // Perform a merge between leaves and the immutable memtable.
 // Single threaded version.
 void SilkStore::BackgroundCompaction() {
+
+
+    /* if (imm_.size() > 2){
+        NvmemTable * tmp = imm_.front();
+        int size = imm_.size();
+        for(int i = 1; i < size; i++){
+            //std::unique_ptr<a> mit(imm_[i]->NewIterator());
+            IndexIterator mit = imm_[i]->NewIndexIterator();
+            while (mit.valid()){
+                tmp->AddIndex(mit.key(), mit.value());
+                ++mit;
+            }
+            NvmemTable *removeImm = imm_[i];
+            imm_.erase(imm_.begin() + 1);
+            removeImm->Unref();
+        }
+    }
+ */
+
+ 
 
  while(!imm_.empty()){
     std::cout << "BackgroundCompaction imm's nums: " << imm_.size() << "\n";

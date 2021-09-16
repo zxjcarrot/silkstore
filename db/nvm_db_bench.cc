@@ -44,6 +44,7 @@
 //      sstables    -- Print sstable info
 //      heapprofile -- Dump a heap profile (if supported by this port)
 static const char* FLAGS_benchmarks =
+    //"fillrandom,"
     "fillseq,"
     "fillsync,"
     "fillrandom,"
@@ -66,7 +67,7 @@ static const char* FLAGS_benchmarks =
     ;
 
 // Number of key/values to place in database
-static int FLAGS_num = 10000000;
+static int FLAGS_num = 100000000;
 
 // Number of read operations to do.  If negative, do FLAGS_num reads.
 static int FLAGS_reads = -1;
@@ -1028,6 +1029,7 @@ class Benchmark {
     //thread->stats.AddMessage(msg);
 
     RandomGenerator gen;
+    // NvmWriteBatch batch;
     WriteBatch batch;
     Status s;
     int64_t bytes = 0;
@@ -1041,6 +1043,7 @@ class Benchmark {
         bytes += value_size_ + strlen(key);
         thread->stats.FinishedSingleOp();
       }
+//      s = db_->NvmWrite(write_options_, &batch);
       s = db_->Write(write_options_, &batch);
       if (!s.ok()) {
         fprintf(stderr, "put error: %s\n", s.ToString().c_str());

@@ -159,8 +159,10 @@ void RandomWrite(){
         assert(s.ok()==true);
         std::cout << " ######### Open DB ######## \n";
 
-        static const int kNumOps = 100000000;
-        static const long int kNumKVs = 30000000;
+       /*  static const int kNumOps = 100000000;
+        static const long int kNumKVs = 30000000; */
+        static const int kNumOps = 10000;
+        static const long int kNumKVs = 30000;
         static const int kValueSize = 100;
         Random rnd(0);
         std::vector<std::string> keys(kNumKVs);

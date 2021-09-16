@@ -7,6 +7,9 @@
 #include "leveldb/iterator.h"
 #include "util/coding.h"
 #include "db/nvmemtable.h"
+#include "leveldb/nvm_write_batch.h"
+#include "leveldb/write_batch.h"
+
 #include <iostream>
 
 namespace leveldb {
@@ -105,6 +108,7 @@ class NvmemTableIterator: public Iterator {
     return NvmGetLengthPrefixedSlice(key_slice.data() + key_slice.size());
   }
 
+
   virtual Status status() const { return Status::OK(); }
 
  private:
@@ -118,6 +122,45 @@ class NvmemTableIterator: public Iterator {
 
 Iterator* NvmemTable::NewIterator() {
   return new NvmemTableIterator(&index_);
+}
+
+IndexIterator NvmemTable::NewIndexIterator() {
+  return index_.begin_unsafe();
+}
+
+
+Status NvmemTable::AddBatch(const NvmWriteBatch* batch){
+   int64_t offset = nvmem->insert(batch->buf, batch->offset_); 
+  //std::cout<< "batch size :" << batch->offset_<< "\n";
+  for(int i = 0; i < batch->offset_arr_.size(); i++){
+      uint64_t address = offset + batch->offset_arr_[i].second;
+      index_.insert(batch->offset_arr_[i].first, address);
+      if (dynamic_filter)
+        dynamic_filter->Add(batch->offset_arr_[i].first);
+  }
+  memory_usage_ += batch->offset_;
+  return Status::OK();
+}
+
+bool NvmemTable::AddIndex(std::string key ,uint64_t val){
+    index_.insert(key,val);
+    return true;
+}
+
+
+
+
+Status NvmemTable::AddBatch(const WriteBatch* batch){
+ // const char* add = ;
+  /* int64_t offset = nvmem->insert(batch->StrAddress() , batch->StrSize()); 
+  //std::cout<< "batch size :" << batch->offset_<< "\n";
+  for(int i = 0; i < batch->offset_arr_.size(); i++){
+      uint64_t address = offset + batch->offset_arr_[i].second;
+      index_.insert(batch->offset_arr_[i].first, address);
+      if (dynamic_filter)
+        dynamic_filter->Add(batch->offset_arr_[i].first);
+  } */
+  return Status::OK();
 }
 
 void NvmemTable::Add(SequenceNumber s, ValueType type,
@@ -167,6 +210,8 @@ bool NvmemTable::Get(const LookupKey& key, std::string* value, Status* s) {
   bool suc = index_.lookup(memkey.ToString(), address);
   
   if (suc) {
+   /*  Slice foundkey = NvmGetLengthPrefixedSlice((char *)(address));
+    std::cout << "found ! key: "<< foundkey.ToString() <<"\n"; */
     // entry format is:
     //    magicNum
     //    klength  varint32
@@ -196,6 +241,8 @@ bool NvmemTable::Get(const LookupKey& key, std::string* value, Status* s) {
           *s = Status::NotFound(Slice("Deleted !"));
           return true;
       }
+    }else{
+      std::cout << " Fuck seq !";
     }
   }
   *s = Status::NotFound(Slice());

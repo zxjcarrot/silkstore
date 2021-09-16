@@ -37,6 +37,10 @@ class WriteBatchInternal {
     return batch->rep_.size();
   }
 
+  static size_t ByteSize(const NvmWriteBatch* batch) {
+    return batch->offset_;
+  }
+
   static void SetContents(WriteBatch* batch, const Slice& contents);
 
   static Status InsertInto(const WriteBatch* batch, MemTable* memtable);
@@ -44,6 +48,8 @@ class WriteBatchInternal {
 
 
   static void Append(WriteBatch* dst, const WriteBatch* src);
+ //  static void Append(NvmWriteBatch* dst, const NvmWriteBatch* src);
+
 };
 
 }  // namespace leveldb

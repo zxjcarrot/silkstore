@@ -18,12 +18,16 @@
 #include "db/dbformat.h"
 #include "leveldb/filter_policy.h"
 
+// #include "leveldb/write_batch.h"
+#include "leveldb/nvm_write_batch.h"
+
 #include "nvm/nvmem.h"
 #include "nvm/nvmlog.h"
 #include "nvm/btree.h"
 
 namespace leveldb {
 
+typedef leveldb::silkstore::BTree<std::string,uint64_t>::unsafe_iterator IndexIterator ;
 
 class InternalKeyComparator;
 class MemTableIterator;
@@ -67,13 +71,18 @@ class NvmemTable {
   // iterator are internal keys encoded by AppendInternalKey in the
   // db/format.{h,cc} module.
   Iterator* NewIterator();
-
+  IndexIterator NewIndexIterator(); 
   // Add an entry into memtable that maps key to value at the
   // specified sequence number and with the specified type.
   // Typically value will be empty if type==kTypeDeletion.
   void Add(SequenceNumber seq, ValueType type,
            const Slice& key,
            const Slice& value);
+ Status AddBatch(const NvmWriteBatch* b);
+ 
+ Status AddBatch(const WriteBatch* b);
+ bool AddIndex(std::string,uint64_t);
+
 
   // If memtable contains a value for key, store it in *value and return true.
   // If memtable contains a deletion for key, store a NotFound() error
@@ -83,9 +92,9 @@ class NvmemTable {
 
   size_t NumEntries() const;
   size_t Searches() const;
-private:
-  ~NvmemTable();  // Private since only Unref() should be used to delete it
 // private:
+  ~NvmemTable();  // Private since only Unref() should be used to delete it
+ private:
   struct KeyComparator {
     const InternalKeyComparator comparator;
     explicit KeyComparator(const InternalKeyComparator& c) : comparator(c) { }

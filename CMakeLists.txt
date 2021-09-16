@@ -124,7 +124,7 @@ target_sources(leveldb
  #   "${PROJECT_SOURCE_DIR}/db/nvm_write_batch_internal.h"
 
     "${PROJECT_SOURCE_DIR}/db/write_batch.cc"
-   # "${PROJECT_SOURCE_DIR}/db/nvm_write_batch.cc"
+   "${PROJECT_SOURCE_DIR}/db/nvm_write_batch.cc"
 
     "${PROJECT_SOURCE_DIR}/port/atomic_pointer.h"
     "${PROJECT_SOURCE_DIR}/port/port_stdcxx.h"
@@ -211,7 +211,7 @@ target_sources(leveldb
     "${LEVELDB_PUBLIC_INCLUDE_DIR}/table_builder.h"
     "${LEVELDB_PUBLIC_INCLUDE_DIR}/table.h"
     "${LEVELDB_PUBLIC_INCLUDE_DIR}/write_batch.h"
-    # "${LEVELDB_PUBLIC_INCLUDE_DIR}/nvm_write_batch.h"
+    "${LEVELDB_PUBLIC_INCLUDE_DIR}/nvm_write_batch.h"
 
 )
 
@@ -334,7 +334,7 @@ if(LEVELDB_BUILD_TESTS)
   # leveldb_test("${PROJECT_SOURCE_DIR}/util/status_test.cc")
   # leveldb_test("${PROJECT_SOURCE_DIR}/util/no_destructor_test.cc")
 
-   leveldb_test("${PROJECT_SOURCE_DIR}/silkstore/silkstore_test.cc")
+  # leveldb_test("${PROJECT_SOURCE_DIR}/silkstore/silkstore_test.cc")
 
   # leveldb_test("${PROJECT_SOURCE_DIR}/silkstore/minirun_test.cc")
   # leveldb_test("${PROJECT_SOURCE_DIR}/silkstore/util_test.cc")
@@ -354,7 +354,7 @@ if(LEVELDB_BUILD_TESTS)
    # leveldb_test("${PROJECT_SOURCE_DIR}/db/write_batch_test.cc")
     target_link_libraries(leveldb -lpmem)
 
-   # leveldb_test("${PROJECT_SOURCE_DIR}/db/nvmemtabletest.cc")
+   leveldb_test("${PROJECT_SOURCE_DIR}/db/nvmemtabletest.cc")
 
    # leveldb_test("${PROJECT_SOURCE_DIR}/helpers/memenv/memenv_test.cc")
 
@@ -461,6 +461,8 @@ if(LEVELDB_INSTALL)
       "${PROJECT_SOURCE_DIR}/${LEVELDB_PUBLIC_INCLUDE_DIR}/table_builder.h"
       "${PROJECT_SOURCE_DIR}/${LEVELDB_PUBLIC_INCLUDE_DIR}/table.h"
       "${PROJECT_SOURCE_DIR}/${LEVELDB_PUBLIC_INCLUDE_DIR}/write_batch.h"
+      "${PROJECT_SOURCE_DIR}/${LEVELDB_PUBLIC_INCLUDE_DIR}/nvm_write_batch.h"
+      
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/leveldb
   )
 

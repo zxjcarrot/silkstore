@@ -26,7 +26,7 @@ void addget(){
                   = new leveldb::silkstore::NvmManager("/mnt/myPMem/pmem.002", size);
         leveldb::silkstore::Nvmem *nvm = manager->allocate(100*MB);
         //nvm->init(4000);
-        leveldb::NvmemTable *table = new leveldb::NvmemTable(cmp , dynamic_filter, nvm); // = new  silkstore::NvmemTable();
+        leveldb::NvmemTable *table = new leveldb::NvmemTable(cmp , dynamic_filter, nvm,nullptr); // = new  silkstore::NvmemTable();
 
         //for(int i =)
         leveldb::SequenceNumber seq = 1;
@@ -73,7 +73,7 @@ void IteratorTest(){
         leveldb::silkstore::Nvmem *nvm = manager->allocate(4131457280);
 
        // nvm->init(4000);
-        leveldb::NvmemTable *table = new leveldb::NvmemTable(cmp , dynamic_filter, nvm); // = new  silkstore::NvmemTable();
+        leveldb::NvmemTable *table = new leveldb::NvmemTable(cmp , dynamic_filter, nvm,nullptr); // = new  silkstore::NvmemTable();
 
         leveldb::SequenceNumber seq = 1;
         leveldb::ValueType type = leveldb::kTypeValue ;
@@ -127,7 +127,7 @@ void deleteUpdate(){
 
         leveldb::silkstore::Nvmem *nvm = manager->allocate(100*MB);
 
-        leveldb::NvmemTable *table = new leveldb::NvmemTable(cmp , dynamic_filter, nvm); // = new  silkstore::NvmemTable();
+        leveldb::NvmemTable *table = new leveldb::NvmemTable(cmp , dynamic_filter, nvm,nullptr); // = new  silkstore::NvmemTable();
 
         leveldb::SequenceNumber seq = 1;
         leveldb::ValueType type = leveldb::kTypeValue ;
@@ -194,7 +194,7 @@ void copyNvmem(){
       leveldb::silkstore::Nvmem *nvm = manager->allocate(asize);
 
       // nvm->init(4000);
-      leveldb::NvmemTable *table = new leveldb::NvmemTable(cmp , dynamic_filter, nvm); // = new  silkstore::NvmemTable();
+      leveldb::NvmemTable *table = new leveldb::NvmemTable(cmp , dynamic_filter, nvm, nullptr); // = new  silkstore::NvmemTable();
 
    /*    leveldb::NvmemTable *table1 = new leveldb::NvmemTable(cmp , dynamic_filter,  manager->allocate(10 * MB)); // = new  silkstore::NvmemTable();
 
@@ -245,7 +245,7 @@ void CompareMemAndImm(){
       leveldb::silkstore::Nvmem *nvmem = manager->allocate(asize);
 
       // nvm->init(4000);
-      leveldb::NvmemTable *nvm = new leveldb::NvmemTable(cmp , dynamic_filter, nvmem); // = new  silkstore::NvmemTable();
+      leveldb::NvmemTable *nvm = new leveldb::NvmemTable(cmp , dynamic_filter, nvmem, nullptr); // = new  silkstore::NvmemTable();
 
       leveldb::MemTable   *mem = new leveldb::MemTable(cmp , nullptr);
 
@@ -323,8 +323,10 @@ void CompareMemAndImm(){
 
 int main(int argc, char** argv){
       //deleteUpdate();
+      CompareMemAndImm();
       IteratorTest();
-      addget();
+   /*    
+      addget(); */
      // std::cout<< " &&&&&&&&&&&&&&&&&&&&&&&&&&&&&& \n $$$$$$$$$$$$$$$$$$$$$$$$$$ \n";
       // copyNvmem();
      //  IteratorTest();

@@ -21,6 +21,7 @@ struct Options;
 struct ReadOptions;
 struct WriteOptions;
 class WriteBatch;
+class NvmWriteBatch;
 
 // Abstract handle to particular state of a DB.
 // A Snapshot is an immutable object and can therefore be safely
@@ -86,6 +87,9 @@ class LEVELDB_EXPORT DB {
   // Returns OK on success, non-OK on failure.
   // Note: consider setting options.sync = true.
   virtual Status Write(const WriteOptions& options, WriteBatch* updates) = 0;
+
+  virtual Status NvmWrite(const WriteOptions& options, NvmWriteBatch* updates) = 0;
+
 
   // If the database contains an entry for "key" store the
   // corresponding value in *value and return OK.

@@ -43,7 +43,7 @@ class Nvmem{
         Nvmem();
         Nvmem(char *data, size_t size);
         ~Nvmem();
-        uint64_t insert(char *, int);
+        uint64_t insert(const char *, int);
         void update(uint64_t, char *, int);
         void print();
 };

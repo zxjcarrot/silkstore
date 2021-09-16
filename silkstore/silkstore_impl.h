@@ -1,7 +1,6 @@
 //
 // Created by zxjcarrot on 2019-07-05.
 //
-
 // Copyright (c) 2011 The LevelDB Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
@@ -11,7 +10,7 @@
 
 #include <deque>
 #include <set>
-#include <list>
+//#include <list>
 
 #include "db/dbformat.h"
 #include "db/log_writer.h"
@@ -47,6 +46,7 @@ public:
     virtual Status Delete(const WriteOptions &, const Slice &key);
 
     virtual Status Write(const WriteOptions &options, WriteBatch *updates);
+    virtual Status NvmWrite(const WriteOptions &options, NvmWriteBatch *updates);
 
     virtual Status Get(const ReadOptions &options,
                        const Slice &key,
@@ -102,12 +102,16 @@ public:
 
     void Destroy();
 
+    void MergeImm(NvmemTable* newImm);
+
 private:
 
     friend class DB;
 
     struct CompactionState;
     struct Writer;
+    struct NvmWriter;
+
 
     // Constant after construction
     Env *const env_;
@@ -133,8 +137,11 @@ private:
     port::AtomicPointer shutting_down_;
     port::CondVar background_work_finished_signal_ GUARDED_BY(mutex_);
     NvmemTable *mem_;
-    std::list< NvmemTable * > imm_ GUARDED_BY(mutex_);  // Memtable being compacted
+    //std::list<std::pair<int, NvmemTable*>> imm_ GUARDED_BY(mutex_);  // Memtable being compacted
     
+    std::deque<NvmemTable*> imm_ GUARDED_BY(mutex_);  // Memtable being compacted
+
+
 //    NvmemTable *imm_ GUARDED_BY(mutex_);  // Memtable being compacted
 
     port::AtomicPointer has_imm_;       // So bg thread can detect non-null imm_
@@ -151,7 +158,10 @@ private:
     SegmentManager *segment_manager_;
     // Queue of writers.
     std::deque<Writer *> writers_ GUARDED_BY(mutex_);
+    std::deque<NvmWriter *> nvmwriters_ GUARDED_BY(mutex_);
     WriteBatch *tmp_batch_ GUARDED_BY(mutex_);
+    NvmWriteBatch *nvm_tmp_batch_ GUARDED_BY(mutex_);
+
 
     SnapshotList snapshots_ GUARDED_BY(mutex_);
 
@@ -204,7 +214,8 @@ private:
 
     Status MakeRoomForWrite(bool force /* compact even if there is room? */)
     EXCLUSIVE_LOCKS_REQUIRED(mutex_);
-
+    Status NvmMakeRoomForWrite(bool force /* compact even if there is room? */)
+    EXCLUSIVE_LOCKS_REQUIRED(mutex_);
     // Recover the descriptor from persistent storage.  May do a significant
     // amount of work to recover recently logged updates.  Any changes to
     // be made to the descriptor are added to *edit.
@@ -213,6 +224,9 @@ private:
     Status RecoverLogFile(uint64_t log_number, SequenceNumber *max_sequence) EXCLUSIVE_LOCKS_REQUIRED(mutex_);;
 
     WriteBatch *BuildBatchGroup(Writer **last_writer)
+    EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+
+    NvmWriteBatch *NvmBuildBatchGroup(NvmWriter **last_writer)
     EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
     void MaybeScheduleCompaction();
