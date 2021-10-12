@@ -33,14 +33,30 @@ void Nvmem::update(uint64_t add ,char* value, int len){
     sfence(); 
 }
 
+
+
+bool Nvmem::UpdateCounter(size_t counters){
+    memcpy(data_ , &counters, 8);
+    clwb(data_);
+    sfence(); 
+    return true;
+}
+
+size_t Nvmem::GetCounter(){
+    size_t counter = 0;
+    memcpy( &counter, data_ ,8);
+    return counter;
+}
+
+
 void Nvmem::print(){
     printf("nvm's information index_ %lu, size_ %lu, data add %lu \n", index_ , size_, (size_t) data_);
 }
 
-Nvmem::Nvmem():data_(nullptr), index_(0), size_(0){}
+Nvmem::Nvmem():data_(nullptr), index_(16), size_(0){}
 
 Nvmem::Nvmem(char *data, size_t size)
-    :data_(data), index_(0), size_(size){} 
+    :data_(data), index_(16), size_(size){} 
 
 Nvmem::~Nvmem(){
 }

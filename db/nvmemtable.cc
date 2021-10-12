@@ -42,7 +42,8 @@ NvmemTable::NvmemTable(const InternalKeyComparator& cmp, DynamicFilter * dynamic
       searches_(0),
       dynamic_filter(dynamic_filter),
       nvmem(nvmem),
-      nvmlog(nvmlog),      
+      nvmlog(nvmlog),
+      counters_(0),      
       memory_usage_(0) {
         initMagicNum(magicNum);
       } 
@@ -126,6 +127,22 @@ Iterator* NvmemTable::NewIterator() {
 
 IndexIterator NvmemTable::NewIndexIterator() {
   return index_.begin_unsafe();
+}
+
+Status NvmemTable::AddCounter(size_t added){
+  counters_ += added;
+  
+ // std::cout<< "update "<< counters_ << "\n ";
+
+  nvmem->UpdateCounter(counters_);
+  return Status::OK();
+}
+
+
+size_t NvmemTable::GetCounter(){
+
+//  std::cout<< counters_ << " ";
+  return  nvmem->GetCounter();
 }
 
 

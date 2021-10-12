@@ -81,6 +81,10 @@ class NvmemTable {
  Status AddBatch(const NvmWriteBatch* b);
  
  Status AddBatch(const WriteBatch* b);
+
+ Status AddCounter(size_t added);
+ size_t GetCounter();
+
  bool AddIndex(std::string,uint64_t);
 
 
@@ -117,6 +121,7 @@ class NvmemTable {
   char magicNum[4];
   size_t num_entries_;
   size_t searches_;
+  size_t counters_;
   size_t memory_usage_;
   DynamicFilter * dynamic_filter;
   // No copying allowed

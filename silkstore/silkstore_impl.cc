@@ -147,7 +147,7 @@ SilkStore::~SilkStore() {
 
 Status SilkStore::OpenIndex(const Options &index_options) {
     assert(leaf_index_ == nullptr);
-    Status s = DB::Open(index_options, dbname_ + "/leaf_index", &leaf_index_);
+    Status s = DB::Open(index_options,  "/mnt/myPMem/leaf_index", &leaf_index_);
     return s;
 }
 
@@ -704,7 +704,8 @@ Status SilkStore::Write(const WriteOptions &options, WriteBatch *my_batch) {
     if (status.ok() && my_batch != nullptr) {  // nullptr batch is for compactions
         WriteBatch *updates = BuildBatchGroup(&last_writer);
         WriteBatchInternal::SetSequence(updates, last_sequence + 1);
-        last_sequence += WriteBatchInternal::Count(updates);
+        size_t nums =  WriteBatchInternal::Count(updates);
+        last_sequence += nums;
 
         // Add to log and apply to memtable.  We can release the lock
         // during this phase since &w is currently responsible for logging
@@ -727,7 +728,9 @@ Status SilkStore::Write(const WriteOptions &options, WriteBatch *my_batch) {
             // Using Nvm to insert data without log
             // status = mem_->AddBatch(updates);
             status = WriteBatchInternal::InsertInto(updates, mem_);
-            
+          //  mem_->AddCounter(nums);
+
+          //  std::cout <<  mem_->GetCounter() << "\n";
             mutex_.Lock();
            /*  if (sync_error) {
                 // The state of the log file is indeterminate: the log record we
@@ -2009,7 +2012,7 @@ void SilkStore::BackgroundCompaction() {
 }
 
 Status DestroyDB(const std::string &dbname, const Options &options) {
-    Status result = leveldb::DestroyDB(dbname + "/leaf_index", options);
+    Status result = leveldb::DestroyDB("/mnt/myPMem/leaf_index", options);
     if (result.ok() == false)
         return result;
     Env *env = options.env;

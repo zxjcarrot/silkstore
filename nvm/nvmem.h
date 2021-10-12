@@ -43,6 +43,8 @@ class Nvmem{
         Nvmem();
         Nvmem(char *data, size_t size);
         ~Nvmem();
+        bool UpdateCounter(size_t counters);
+        size_t GetCounter();
         uint64_t insert(const char *, int);
         void update(uint64_t, char *, int);
         void print();
