@@ -18,34 +18,30 @@ namespace leveldb {
 static Slice NvmGetLengthPrefixedSlice(const char* data) {
   uint32_t len;
   const char* p = data;
-
   p = GetVarint32Ptr(p, p + 5, &len);  // +5: we assume "p" is not corrupted
-
   return Slice(p, len);
 }
 
-
-
 // helper function used to init MagicNum
-void initMagicNum(char* magicNum){
+/* void initMagicNum(char* magicNum){
     magicNum[0] = (char) (0xCA);  
     magicNum[1] = (char) (0xFE);  
     magicNum[2] = (char) (0xBA);  
     magicNum[3] = (char) (0xBE);  
-}
+} */
 
 NvmemTable::NvmemTable(const InternalKeyComparator& cmp, DynamicFilter * dynamic_filter, 
-    silkstore::Nvmem* nvmem, silkstore::NvmLog* nvmlog )
+    silkstore::Nvmem* nvmem)// , silkstore::NvmLog* nvmlog )
     : comparator_(cmp),
       refs_(0),
       num_entries_(0),
       searches_(0),
       dynamic_filter(dynamic_filter),
       nvmem(nvmem),
-      nvmlog(nvmlog),
+      //nvmlog(nvmlog),
       counters_(0),      
       memory_usage_(0) {
-        initMagicNum(magicNum);
+        //initMagicNum(magicNum);
       } 
 
 NvmemTable::~NvmemTable() {
@@ -109,7 +105,6 @@ class NvmemTableIterator: public Iterator {
     return NvmGetLengthPrefixedSlice(key_slice.data() + key_slice.size());
   }
 
-
   virtual Status status() const { return Status::OK(); }
 
  private:
@@ -131,23 +126,18 @@ IndexIterator NvmemTable::NewIndexIterator() {
 
 Status NvmemTable::AddCounter(size_t added){
   counters_ += added;
-  
- // std::cout<< "update "<< counters_ << "\n ";
-
   nvmem->UpdateCounter(counters_);
   return Status::OK();
 }
 
 
 size_t NvmemTable::GetCounter(){
-
-//  std::cout<< counters_ << " ";
-  return  nvmem->GetCounter();
+  return nvmem->GetCounter();
 }
 
-
+/* 
 Status NvmemTable::AddBatch(const NvmWriteBatch* batch){
-   int64_t offset = nvmem->insert(batch->buf, batch->offset_); 
+   int64_t offset = nvmem->Insert(batch->buf, batch->offset_); 
   //std::cout<< "batch size :" << batch->offset_<< "\n";
   for(int i = 0; i < batch->offset_arr_.size(); i++){
       uint64_t address = offset + batch->offset_arr_[i].second;
@@ -157,28 +147,39 @@ Status NvmemTable::AddBatch(const NvmWriteBatch* batch){
   }
   memory_usage_ += batch->offset_;
   return Status::OK();
-}
+} */
 
-bool NvmemTable::AddIndex(std::string key ,uint64_t val){
-    index_.insert(key,val);
+bool NvmemTable::AddIndex(Slice key ,uint64_t val){
+    index_.insert(key.ToString(),val);
     return true;
 }
 
 
+Status NvmemTable::Recovery(){
 
+  // ToDo Get the right counters
+  // Because updatecounter is not called in testcase, counters is set to 20
+  int counters = 20;//nvmem->GetCounter();
+  uint64_t offset = 16;
+  uint64_t address = nvmem->GetBeginAddress();
+  uint32_t key_length;
+  uint32_t value_length;
+  while(counters-- ){
+    const char* key_ptr = GetVarint32Ptr((char *) (address + offset), 
+        (char *) (address + offset + 5), &key_length);
+    std::string key = // Slice(key_ptr, key_length - 8).ToString();
+                      std::string(key_ptr, key_length - 8);
+    std::cout << "Key:" << key << "\n"; 
+    AddIndex(key, offset);
+    offset += key_length +  VarintLength(key_length); 
+    const char* value_ptr = GetVarint32Ptr((char *) (key_ptr  + key_length), 
+       (char *) (key_ptr  + key_length + 5), &value_length);
+    offset += value_length +  VarintLength(value_length); 
 
-Status NvmemTable::AddBatch(const WriteBatch* batch){
- // const char* add = ;
-  /* int64_t offset = nvmem->insert(batch->StrAddress() , batch->StrSize()); 
-  //std::cout<< "batch size :" << batch->offset_<< "\n";
-  for(int i = 0; i < batch->offset_arr_.size(); i++){
-      uint64_t address = offset + batch->offset_arr_[i].second;
-      index_.insert(batch->offset_arr_[i].first, address);
-      if (dynamic_filter)
-        dynamic_filter->Add(batch->offset_arr_[i].first);
-  } */
+  }
   return Status::OK();
 }
+
 
 void NvmemTable::Add(SequenceNumber s, ValueType type,
                    const Slice& key,
@@ -203,17 +204,18 @@ void NvmemTable::Add(SequenceNumber s, ValueType type,
   p = EncodeVarint32(p, val_size);
   memcpy(p, value.data(), val_size);
   assert(p + val_size == buf + encoded_len); 
-  memcpy(buf + encoded_len, magicNum, 4);
-  uint64_t address = nvmem->insert(buf, encoded_len + 4);
+//  memcpy(buf + encoded_len, magicNum, 4);
+  uint64_t address = nvmem->Insert(buf, encoded_len);
   index_.insert(key.ToString(), address);
-  // nvmlog->append(address);
 
   if (dynamic_filter)
     dynamic_filter->Add(key);
   ++num_entries_;
   // update memory_usage_ to recode nvm's usage size
-  memory_usage_ += encoded_len + 4;
+  memory_usage_ += encoded_len;
 }
+
+
 
 bool NvmemTable::Get(const LookupKey& key, std::string* value, Status* s) {
   if (dynamic_filter && !dynamic_filter->KeyMayMatch(key.user_key()))
@@ -221,9 +223,7 @@ bool NvmemTable::Get(const LookupKey& key, std::string* value, Status* s) {
 
   ++searches_;
   Slice memkey = key.user_key();
-  
   uint64_t address = -1;
-
   bool suc = index_.lookup(memkey.ToString(), address);
   
   if (suc) {

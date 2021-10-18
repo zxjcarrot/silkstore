@@ -46,7 +46,7 @@ public:
     virtual Status Delete(const WriteOptions &, const Slice &key);
 
     virtual Status Write(const WriteOptions &options, WriteBatch *updates);
-    virtual Status NvmWrite(const WriteOptions &options, NvmWriteBatch *updates);
+   // virtual Status NvmWrite(const WriteOptions &options, NvmWriteBatch *updates);
 
     virtual Status Get(const ReadOptions &options,
                        const Slice &key,
@@ -140,6 +140,10 @@ private:
     //std::list<std::pair<int, NvmemTable*>> imm_ GUARDED_BY(mutex_);  // Memtable being compacted
     
     std::deque<NvmemTable*> imm_ GUARDED_BY(mutex_);  // Memtable being compacted
+        
+    std::deque<NvmemTable*> compaction_queue_ GUARDED_BY(mutex_);  // Memtable being compacted
+
+    NvmemTable* compaction_table_;
 
 
 //    NvmemTable *imm_ GUARDED_BY(mutex_);  // Memtable being compacted
@@ -154,7 +158,7 @@ private:
     size_t allowed_num_leaves = 0;
     size_t num_leaves = 0;
     silkstore::NvmManager *nvm_manager_;
-    silkstore::NvmLog *nvm_log_; 
+    //silkstore::NvmLog *nvm_log_; 
     SegmentManager *segment_manager_;
     // Queue of writers.
     std::deque<Writer *> writers_ GUARDED_BY(mutex_);
@@ -214,7 +218,7 @@ private:
 
     Status MakeRoomForWrite(bool force /* compact even if there is room? */)
     EXCLUSIVE_LOCKS_REQUIRED(mutex_);
-    Status NvmMakeRoomForWrite(bool force /* compact even if there is room? */)
+    //Status NvmMakeRoomForWrite(bool force /* compact even if there is room? */)
     EXCLUSIVE_LOCKS_REQUIRED(mutex_);
     // Recover the descriptor from persistent storage.  May do a significant
     // amount of work to recover recently logged updates.  Any changes to

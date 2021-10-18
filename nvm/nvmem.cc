@@ -6,7 +6,7 @@ namespace leveldb{
 namespace silkstore{
 
 // insert date into nvm
-uint64_t Nvmem::insert(const char* value, int len){
+uint64_t Nvmem::Insert(const char* value, int len){
     // Not enough memory assert
     if(index_ + len >= size_){
        fprintf(stderr, " nvm memory is full!  \
@@ -25,14 +25,14 @@ uint64_t Nvmem::insert(const char* value, int len){
     } 
 }
 
-// update date into nvm
+/* // update date into nvm
 void Nvmem::update(uint64_t add ,char* value, int len){
     // then, insert data and flush to nvm 
     memcpy((void *)add , value, len);
     clwbmore(data_ + index_, data_ + index_ + len);
     sfence(); 
 }
-
+ */
 
 
 bool Nvmem::UpdateCounter(size_t counters){
@@ -47,6 +47,13 @@ size_t Nvmem::GetCounter(){
     memcpy( &counter, data_ ,8);
     return counter;
 }
+
+
+
+uint64_t Nvmem::GetBeginAddress(){
+    return (uint64_t) data_;
+}
+
 
 
 void Nvmem::print(){

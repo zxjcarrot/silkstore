@@ -42,6 +42,7 @@ Options::Options()
       use_memtable_dynamic_filter(false),
       memtable_dynamic_filter_fp_rate(0.1),
       nvm_file("/mnt/myPMem/pmem.002"),
+      leaf_index_path(nullptr),
       nvm_size(1024 * 1024 * 1024),
       max_imm_num(10),
       update_in_place(false){}

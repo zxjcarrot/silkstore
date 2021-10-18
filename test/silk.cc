@@ -80,10 +80,10 @@ void SequentialWrite(){
         options.nvm_size = 20UL*(1024*1024*1024);
         leveldb::Status s = leveldb::DB::OpenSilkStore(options, "./silkdb", &db_);
         assert(s.ok()==true);
-        std::cout << " ######### Open DB ######## \n";
+        std::cout << " ######### SequentialWrite Open DB ######## \n";
 
-        static const int kNumOps = 30000000;
-        static const long int kNumKVs = 30000000;
+        static const int kNumOps = 30000;
+        static const long int kNumKVs = 30000;
         static const int kValueSize = 100;
 
         Random rnd(0);
@@ -120,7 +120,7 @@ void SequentialWrite(){
         }
 
         std::cout << " @@@@@@@@@ PASS #########\n";
-        std::cout << " ######### Begin Iterator Test ######## \n";
+        std::cout << " ######### Begin Sequential Iterator Test ######## \n";
 
         auto it = db_->NewIterator(ReadOptions());
         it->SeekToFirst();
@@ -131,6 +131,9 @@ void SequentialWrite(){
             auto res_value = it->value();
             auto ans_key = mit->first;
             auto ans_value = mit->second;
+            std::cout << res_key.ToString() << " " << ans_key << "\n"; 
+            std::cout << res_value.ToString() << " " << ans_value << "\n";        
+                   
             assert(res_key == ans_key);
             assert(res_value == ans_value);
             it->Next();
@@ -161,8 +164,8 @@ void RandomWrite(){
 
        /*  static const int kNumOps = 100000000;
         static const long int kNumKVs = 30000000; */
-        static const int kNumOps = 10000;
-        static const long int kNumKVs = 30000;
+        static const int kNumOps = 30000000;
+        static const long int kNumKVs = 300000;
         static const int kValueSize = 100;
         Random rnd(0);
         std::vector<std::string> keys(kNumKVs);
@@ -219,6 +222,7 @@ void RandomWrite(){
         auto res_value = it->value();
         auto ans_key = mit->first;
         auto ans_value = mit->second;
+        std::cout << res_key.ToString() << " " << ans_key << "\n";
         assert(res_key == ans_key);
         assert(res_value == ans_value);
         it->Next();
@@ -226,7 +230,6 @@ void RandomWrite(){
         count++;
     }
     std::cout << " @@@@@@@@@ PASS #########\n";
-    // std::cout << count ++ << endl;
     delete db_;
     std::cout << " Delete Open Db \n";
 }

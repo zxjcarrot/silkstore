@@ -209,6 +209,8 @@ struct LEVELDB_EXPORT Options {
   size_t max_imm_num;
   bool update_in_place;
 
+  const char* leaf_index_path;
+
   Options();
 };
 

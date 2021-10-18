@@ -987,6 +987,7 @@ class Benchmark {
       options.enable_leaf_read_opt = FLAGS_enable_leaf_read_opt;
       options.use_memtable_dynamic_filter = FLAGS_enable_memtable_bloom;
       options.nvm_size = 10ul * 1024 * 1024 * 1024; 
+      options.leaf_index_path = "/mnt/myPMem";
       options.maximum_segments_storage_size = (static_cast<int64_t>(kKeySize + FLAGS_value_size) * FLAGS_table_size) * FLAGS_log_dataset_ratio;
       fprintf(stderr, "maximum_segments_storage_size %lu bytes\n", options.maximum_segments_storage_size);
 

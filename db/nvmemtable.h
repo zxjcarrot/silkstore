@@ -18,7 +18,6 @@
 #include "db/dbformat.h"
 #include "leveldb/filter_policy.h"
 
-// #include "leveldb/write_batch.h"
 #include "leveldb/nvm_write_batch.h"
 
 #include "nvm/nvmem.h"
@@ -36,26 +35,31 @@ class NvmemTable {
  public:
   // MemTables are reference counted.  The initial reference count
   // is zero and the caller must call Ref() at least once.
+  //explicit NvmemTable(const InternalKeyComparator& comparator, 
+  //    DynamicFilter * dynamic_filter, silkstore::Nvmem *nvmem, silkstore::NvmLog *nvmlog);
   explicit NvmemTable(const InternalKeyComparator& comparator, 
-      DynamicFilter * dynamic_filter, silkstore::Nvmem *nvmem, silkstore::NvmLog *nvmlog);
-
-
- // explicit NvmemTable(const InternalKeyComparator& comparator, 
- //     DynamicFilter * dynamic_filter, silkstore::Nvmem *nvmem);
+      DynamicFilter * dynamic_filter, silkstore::Nvmem *nvmem);
 
 
   // Increase reference count.
-  void Ref() { ++refs_; }
+  void Ref() { 
+    ++refs_;  
+    //printf(" %lx ### nvmemtable::Ref() ### %d\n",this , refs_);
+  }
 
   void print(){
     nvmem->print();
   }
 
+  
+
   // Drop reference count.  Delete if no more references exist.
   void Unref() {
     --refs_;
+    //printf(" %lx ### nvmemtable::Unref() ### %d\n",this , refs_);
     assert(refs_ >= 0);
     if (refs_ <= 0) {
+   //   printf("$$$ nvmemtable::delete() $$$\n");      
       delete this;
     }
   }
@@ -65,7 +69,6 @@ class NvmemTable {
   size_t ApproximateMemoryUsage();
 
   // Return an iterator that yields the contents of the memtable.
-  //
   // The caller must ensure that the underlying MemTable remains live
   // while the returned iterator is live.  The keys returned by this
   // iterator are internal keys encoded by AppendInternalKey in the
@@ -78,22 +81,18 @@ class NvmemTable {
   void Add(SequenceNumber seq, ValueType type,
            const Slice& key,
            const Slice& value);
- Status AddBatch(const NvmWriteBatch* b);
- 
- Status AddBatch(const WriteBatch* b);
-
- Status AddCounter(size_t added);
- size_t GetCounter();
-
- bool AddIndex(std::string,uint64_t);
-
+  //Status AddBatch(const NvmWriteBatch* b);
+  
+  Status Recovery();
+  Status AddCounter(size_t added);
+  size_t GetCounter();
+  bool AddIndex(Slice,uint64_t);
 
   // If memtable contains a value for key, store it in *value and return true.
   // If memtable contains a deletion for key, store a NotFound() error
   // in *status and return true.
   // Else, return false.
   bool Get(const LookupKey& key, std::string* value, Status* s);
-
   size_t NumEntries() const;
   size_t Searches() const;
 // private:
@@ -110,15 +109,13 @@ class NvmemTable {
 
  typedef leveldb::silkstore::BTree<std::string,uint64_t> Index;
 //  typedef std::map<std::string ,uint64_t > ;
-
   KeyComparator comparator_;
   int refs_;
   Index index_;
   silkstore::Nvmem *nvmem;
-  silkstore::NvmLog *nvmlog;
   // buf's first 4 bytes magic number 0xCAFEBABE used to recover data 
   char buf[5120];
-  char magicNum[4];
+  //char magicNum[4];
   size_t num_entries_;
   size_t searches_;
   size_t counters_;

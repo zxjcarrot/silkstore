@@ -1120,10 +1120,7 @@ int64_t DBImpl::TEST_MaxNextLevelOverlappingBytes() {
   MutexLock l(&mutex_);
   return versions_->MaxNextLevelOverlappingBytes();
 }
-Status DBImpl::NvmWrite(const WriteOptions& options, NvmWriteBatch* updates){
-  std::cout<< "DBImpl::NvmWrite Not Support !\n";
-  return Status::NotSupported("Err");
-}
+
 Status DBImpl::Get(const ReadOptions& options,
                    const Slice& key,
                    std::string* value) {
@@ -1353,7 +1350,7 @@ Status DBImpl::MakeRoomForWrite(bool force) {
       // seconds when we hit the hard limit, start delaying each
       // individual write by 1ms to reduce latency variance.  Also,
       // this delay hands over some CPU to the compaction thread in
-      // case it is sharing the same core as the writer.
+      // case it is sharing the same benchmark as the writer.
       mutex_.Unlock();
       env_->SleepForMicroseconds(1000);
       allow_delay = false;  // Do not delay a single write more than once
