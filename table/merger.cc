@@ -8,6 +8,9 @@
 #include "leveldb/iterator.h"
 #include "table/iterator_wrapper.h"
 
+
+#include <iostream>
+
 namespace leveldb {
 
 namespace {
@@ -49,8 +52,11 @@ class MergingIterator : public Iterator {
   }
 
   virtual void Seek(const Slice& target) {
+    //std::cout<< "Seek target:" << target.ToString() << " \n";
     for (int i = 0; i < n_; i++) {
       children_[i].Seek(target);
+      //if ( children_[i].Valid())
+      //std::cout << children_[i].key().ToString() << " ";
     }
     FindSmallest();
     direction_ = kForward;

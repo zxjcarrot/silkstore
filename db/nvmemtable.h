@@ -21,7 +21,6 @@
 #include "leveldb/nvm_write_batch.h"
 
 #include "nvm/nvmem.h"
-#include "nvm/nvmlog.h"
 #include "nvm/btree.h"
 
 namespace leveldb {
@@ -44,7 +43,8 @@ class NvmemTable {
   // Increase reference count.
   void Ref() { 
     ++refs_;  
-    //printf(" %lx ### nvmemtable::Ref() ### %d\n",this , refs_);
+    //printf(" ### nvmemtable::Ref() ### %d\n", refs_);
+    return ;
   }
 
   void print(){
@@ -59,9 +59,10 @@ class NvmemTable {
     //printf(" %lx ### nvmemtable::Unref() ### %d\n",this , refs_);
     assert(refs_ >= 0);
     if (refs_ <= 0) {
-   //   printf("$$$ nvmemtable::delete() $$$\n");      
+     // printf("$$$ nvmemtable::delete() $$$\n");      
       delete this;
     }
+    return ;
   }
 
   // Returns an estimate of the number of bytes of data in use by this

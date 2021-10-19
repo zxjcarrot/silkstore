@@ -173,8 +173,11 @@ void RandomWrite(){
             keys[i] = RandomNumberKey(&rnd) ;
         }
         std::map<std::string, std::string> m;
-        std::cout << " ######### Begin Random Insert And Get Test ######## \n";
         size_t countNum = 0;
+
+
+        std::cout << " ######### Begin Random Insert And Get Test ######## \n";
+        countNum = 0;
         for (int i = 0; i < kNumOps; i++) {
           std::string key = keys[i % kNumKVs];
           std::string value = RandomString(&rnd, kValueSize);
@@ -211,25 +214,64 @@ void RandomWrite(){
             }
     }
     std::cout << " @@@@@@@@@ PASS #########\n";
-    std::cout << " ######### Begin Iterator Test ######## \n";
 
-    auto it = db_->NewIterator(ReadOptions());
-    it->SeekToFirst();
-    auto mit = m.begin();
-    int count = 0;
-    while (mit != m.end() && it->Valid()) {
-        auto res_key = it->key();
-        auto res_value = it->value();
-        auto ans_key = mit->first;
-        auto ans_value = mit->second;
-        std::cout << res_key.ToString() << " " << ans_key << "\n";
-        assert(res_key == ans_key);
-        assert(res_value == ans_value);
-        it->Next();
-        ++mit;
-        count++;
+
+    std::cout << " ######### Begin Random Insert And Iterator Test ######## \n";
+    countNum = 0;
+    for (int i = 0; i < kNumOps; i++) {
+      std::string key = keys[i % kNumKVs];
+      std::string value = RandomString(&rnd, kValueSize);
+      auto s = db_->Put(WriteOptions(),key, value);
+      m[key] = value;
+      if ((i + 1) % 100000 == 0){
+        int idx = std::min(rand(), i) % kNumKVs;
+        auto it = db_->NewIterator(ReadOptions());
+        std::string s = keys[idx];
+        //LookupKey lkey(s, snapshot);
+        it->Seek(s);
+        if (m[keys[idx]] != ""){
+          std::cout << " \n seek value: " << keys[idx];
+          if (it->Valid())
+            std::cout << " res: " <<  it->key().ToString() << "\n";
+          sleep(10);
+          if (!it->Valid() || it->key().ToString() != keys[idx]){
+          //   it->SeekToFirst();
+          //  while(it->Valid()){
+          //    std::cout<< it->key().ToString() << " ";
+          //    it->Next();
+          //  } 
+            std::cout << " ERROR \n";
+
+            return ;
+          }
+          string res = "";
+          auto s = db_->Get(ReadOptions(), keys[idx], &res);
+          auto ans = m[keys[idx]];
+          if (res != ans) {
+            std::cout << " ERROR \n";
+            return;
+          }
+        }
+        delete it;
+      }
+
+      for (int j = 0; j < 1; ++j) {
+        int idx = std::min(rand(), i) % kNumKVs;
+        string res = "";
+        auto s = db_->Get(ReadOptions(), keys[idx], &res);
+        countNum++;
+        auto ans = m[keys[idx]];
+        if (res != ans) {
+            fprintf(stderr, "Key %s has wrong value %s \n",keys[idx].c_str(), res.c_str() );
+            fprintf(stderr, "correct value is %s \n status: %s \n",  ans.c_str(), s.ToString().c_str());
+            fprintf(stderr, "count %ld \n",  countNum);
+            return ;
+        }
+      } 
     }
-    std::cout << " @@@@@@@@@ PASS #########\n";
+
+    std::cout << " ######### PASS ######## \n";
+    
     delete db_;
     std::cout << " Delete Open Db \n";
 }

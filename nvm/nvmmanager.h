@@ -2,9 +2,9 @@
 #define NVMMANAGER
  
 #include "nvm/nvmem.h"
-#include "nvm/nvmlog.h"
 #include <iostream>
-#include <queue>
+#include <deque>
+#include <mutex> 
 
 #define LOGCAP 30*MB
 
@@ -22,8 +22,8 @@ class NvmManager{
     size_t index_;
     size_t cap_;
     char *data_;
-    std::queue<size_t> memUsage;
-
+    std::deque<std::pair<size_t,size_t>> memUsage;
+    std::mutex mtx;
     void init();
 
  public:
@@ -31,9 +31,8 @@ class NvmManager{
     NvmManager(const char * nvm_file, size_t size = GB);
     ~NvmManager();
     Nvmem* allocate(size_t cap = 30*MB);
-    NvmLog* initLog(size_t cap = 30*MB);
-    size_t getBeginAddress();
-    void free();
+    std::string getNvmInfo();
+    void free(char * address);
  };
 
 } // namespace silkstore 

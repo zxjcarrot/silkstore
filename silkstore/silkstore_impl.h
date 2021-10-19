@@ -25,7 +25,6 @@
 
 
 #include "nvm/nvmem.h"
-#include "nvm/nvmlog.h"
 #include "nvm/nvmmanager.h"
 #include "db/nvmemtable.h"
 
@@ -126,6 +125,8 @@ private:
 
     // Leaf index
     DB *leaf_index_;
+    
+  //  std::vector<std::string> imms_informations;
 
     // Lock over the persistent DB state.  Non-null iff successfully acquired.
     FileLock *db_lock_;

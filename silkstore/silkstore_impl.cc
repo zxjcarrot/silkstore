@@ -272,6 +272,7 @@ Status SilkStore::RecoverLogFile(uint64_t log_number, SequenceNumber *max_sequen
     if (mem != nullptr) {
         // mem did not get reused; delete it.
         mem->Unref();
+      //  nvm_manager_->free();
     }
     return status;
 }
@@ -366,10 +367,33 @@ Status SilkStore::Delete(const WriteOptions &options, const Slice &key) {
 }
 
 // Need to be rewritten
-static void SilkStoreNewIteratorCleanup(void *arg1, void *arg2) {
+/* static void SilkStoreNewIteratorCleanup(void *arg1, void *arg2) {
     static_cast<MemTable *>(arg1)->Unref();
     if (arg2) static_cast<MemTable *>(arg2)->Unref();
 }
+ */
+
+ struct IterState {
+        port::Mutex* const mu;
+        std::vector<NvmemTable *> cleanup GUARDED_BY(mu);
+        IterState(port::Mutex* mutex, std::vector<NvmemTable *> clean)
+                : mu(mutex), cleanup(clean) { }
+};
+
+static void SilkStoreNewIteratorCleanup(void *arg1, void *arg2) {
+    IterState* state = reinterpret_cast<IterState*>(arg1);
+    state->mu->Lock();
+    //std::cout << "call SilkStoreNewIteratorCleanup() \n";
+    /* state->mem->Unref();
+    if (state->imm != nullptr) state->imm->Unref(); */
+    for(int i = 0; i < state->cleanup.size(); i++){
+        state->cleanup[i]->Unref();
+    }
+    state->mu->Unlock();
+    delete state;
+}
+
+
 
 const Snapshot *SilkStore::GetSnapshot() {
     MutexLock l(&mutex_);
@@ -387,19 +411,26 @@ Iterator *SilkStore::NewIterator(const ReadOptions &ropts) {
                                           : max_sequence_;
     // Collect together all needed child iterators
     std::vector<Iterator *> list;
+    std::vector<NvmemTable *> cleanup;
+
+  //  std::cout << "$$$$$$$$ SilkStore::NewIterator Need To be Fixed $$$$$$$$$$$$$$\n";   
+
+
     list.push_back(mem_->NewIterator());
-    std::cout << "$$$$$$$$ SilkStore::NewIterator Need To be Fixed $$$$$$$$$$$$$$\n";   
+    cleanup.push_back(mem_);    
     mem_->Ref();
-    if (compaction_table_ != nullptr){
+/*     if (compaction_table_ != nullptr){
          list.push_back(compaction_table_->NewIterator());
          compaction_table_->Ref();
-    }
+    } */
 
     if(!imm_.empty()){
-        for( auto it: imm_){
-            list.push_back(it->NewIterator());
+        for(auto it = imm_.rbegin() ;it != imm_.rend(); it++){
+       // for( auto it: imm_){
+            cleanup.push_back(*it);
+            list.push_back((*it)->NewIterator());
             std::cout << " it->Ref ";   
-            it->Ref();
+            (*it)->Ref();
         }
     }
     // TO BE FIXED
@@ -408,13 +439,17 @@ Iterator *SilkStore::NewIterator(const ReadOptions &ropts) {
     list.push_back(leaf_store_->NewIterator(ropts));
     Iterator *internal_iter =
             NewMergingIterator(&internal_comparator_, &list[0], list.size());
-    internal_iter->RegisterCleanup(SilkStoreNewIteratorCleanup, mem_, nullptr);
 
-    if(!imm_.empty()){
+
+    IterState* clean = new IterState(&mutex_, cleanup);
+    internal_iter->RegisterCleanup(SilkStoreNewIteratorCleanup, clean, nullptr);
+
+/*     if(!imm_.empty()){
         for( auto it: imm_){
             internal_iter->RegisterCleanup(SilkStoreNewIteratorCleanup, it, nullptr);
         }
-    }
+    } 
+*/
     return leveldb::silkstore::NewDBIterator(internal_comparator_.user_comparator(), internal_iter,
                                              seqno);
 }
@@ -471,8 +506,13 @@ Status SilkStore::MakeRoomForWrite(bool force) {
                 dynamic_filter = NewDynamicFilterBloom(new_memtable_capacity_num_entries,
                                                        options_.memtable_dynamic_filter_fp_rate);
             }
+           // size_t offset;
             mem_ = new NvmemTable(internal_comparator_, dynamic_filter,
                         nvm_manager_->allocate( new_memtable_capacity + 1000));
+
+            //imms_informations.push_back(offset);
+            //std::cout<< "offset: " << offset << "\n";
+           // std::cout<<"NvmInfo:" << nvm_manager_->getNvmInfo();
             mem_->Ref();
             force = false;   // Do not force another compaction if have room
             MaybeScheduleCompaction();
@@ -728,11 +768,14 @@ Status SilkStore::Get(const ReadOptions &options,
     } else {
         snapshot = max_sequence_;
     }
-    NvmemTable *mem = mem_;    
+   NvmemTable *mem = mem_;    
    mem->Ref();
+   //auto 
+   std::vector<NvmemTable *> ref_table;
    if (!imm_.empty()) {
         for(auto it : imm_){
-           it->Ref();
+            ref_table.push_back(it);
+            it->Ref();
         }
     }           
     // Unlock while reading from files and memtables
@@ -746,8 +789,9 @@ Status SilkStore::Get(const ReadOptions &options,
            find = true;
         } else if (!imm_.empty()) {
             //这里必须是从后往前找，因为最新的imm都放到了后面
-            for(auto it = imm_.rbegin() ;it != imm_.rend(); it++){
-                 if ((*it)->Get(lkey, value, &s)){
+           // for(auto it = imm_.rbegin() ;it != imm_.rend(); it++){
+            for(int i = ref_table.size() - 1; i >= 0; i++){
+                 if (ref_table[i]->Get(lkey, value, &s)){
                      find = true;
                      break;
                  }
@@ -763,8 +807,8 @@ Status SilkStore::Get(const ReadOptions &options,
 //        MaybeScheduleCompaction();
 //    }
     mem->Unref();
-    if (!imm_.empty()) {
-        for(auto it : imm_){
+    if (!ref_table.empty()) {
+        for(auto it : ref_table){
            it->Unref();
         }
     }           
@@ -1817,13 +1861,15 @@ void SilkStore::BackgroundCompaction() {
             auto imm = imm_.front();
             imm_.pop_front();
             imm->Unref();
-            nvm_manager_->free();        
+          //  nvm_manager_->free();        
             if (imm == flag){
                 break;    
             }
         }
        compaction_table_->Unref();
        compaction_table_ = nullptr;
+       //std::cout<<"delete NvmInfo:" << nvm_manager_->getNvmInfo() << " \n";
+
         has_imm_.Release_Store(nullptr);
     }
 }

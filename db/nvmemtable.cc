@@ -51,6 +51,7 @@ NvmemTable::~NvmemTable() {
     dynamic_filter = nullptr;
   }
   if (nvmem){
+    //printf("######### release nvm ############\n");
     delete nvmem;
     nvmem = nullptr;
   } 

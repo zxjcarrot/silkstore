@@ -185,8 +185,8 @@ target_sources(leveldb
     "${PROJECT_SOURCE_DIR}/db/nvmemtable.cc"
     "${PROJECT_SOURCE_DIR}/nvm/nvmem.h"
     "${PROJECT_SOURCE_DIR}/nvm/nvmem.cc"
-    "${PROJECT_SOURCE_DIR}/nvm/nvmlog.h"
-    "${PROJECT_SOURCE_DIR}/nvm/nvmlog.cc"    
+    #"${PROJECT_SOURCE_DIR}/nvm/nvmlog.h"
+    #"${PROJECT_SOURCE_DIR}/nvm/nvmlog.cc"    
     "${PROJECT_SOURCE_DIR}/nvm/nvmmanager.h"
     "${PROJECT_SOURCE_DIR}/nvm/nvmmanager.cc"
 

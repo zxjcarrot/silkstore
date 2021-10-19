@@ -32,16 +32,19 @@
 namespace leveldb{
 namespace silkstore{
 
-        
+class NvmManager;
+
+
 class Nvmem{
     private:
         char *data_;
+        NvmManager* nvmem_manger_;
         size_t index_;
         size_t size_;
-
+        size_t remain_;
     public:
         Nvmem();
-        Nvmem(char *data, size_t size);
+        Nvmem(char *data, size_t size, NvmManager* nvmem_manger);
         ~Nvmem();
         bool UpdateCounter(size_t counters);
         size_t GetCounter();

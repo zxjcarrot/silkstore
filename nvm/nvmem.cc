@@ -1,4 +1,5 @@
 #include"nvm/nvmem.h"
+#include"nvm/nvmmanager.h"
 #include <iostream>
 
 namespace leveldb{
@@ -62,10 +63,11 @@ void Nvmem::print(){
 
 Nvmem::Nvmem():data_(nullptr), index_(16), size_(0){}
 
-Nvmem::Nvmem(char *data, size_t size)
-    :data_(data), index_(16), size_(size){} 
+Nvmem::Nvmem(char *data, size_t size,NvmManager* nvmem_manger)
+    :data_(data), index_(16), size_(size),nvmem_manger_(nvmem_manger) {} 
 
 Nvmem::~Nvmem(){
+    nvmem_manger_->free(data_);
 }
 
 
