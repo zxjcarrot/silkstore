@@ -28,12 +28,10 @@
 #endif
 
 
-
 namespace leveldb{
 namespace silkstore{
 
 class NvmManager;
-
 
 class Nvmem{
     private:
@@ -47,10 +45,10 @@ class Nvmem{
         Nvmem(char *data, size_t size, NvmManager* nvmem_manger);
         ~Nvmem();
         bool UpdateCounter(size_t counters);
+        bool UpdateIndex(size_t index);
         size_t GetCounter();
         uint64_t GetBeginAddress();
         uint64_t Insert(const char *, int);
-       // void update(uint64_t, char *, int);
         void print();
 };
 

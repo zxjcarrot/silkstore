@@ -42,7 +42,10 @@ bool Nvmem::UpdateCounter(size_t counters){
     sfence(); 
     return true;
 }
-
+bool Nvmem::UpdateIndex(size_t index){
+    index_ = index;
+    return true;
+}
 size_t Nvmem::GetCounter(){
     size_t counter = 0;
     memcpy( &counter, data_ ,8);

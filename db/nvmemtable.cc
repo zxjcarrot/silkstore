@@ -88,7 +88,7 @@ class NvmemTableIterator: public Iterator {
   virtual void Seek(const Slice& k) { iter_ = index->seek(k.ToString()); }
   virtual void SeekToFirst() { iter_ = index->begin_unsafe(); }
   virtual void SeekToLast() {  
-      fprintf(stderr, "MemTableIterator's SeekToLast() is not implemented !");  
+      fprintf(stderr, "MemTableIterator's SeekToLast() is not implemented ! \n");  
       assert(true);
   }
   virtual void Next() {  ++iter_; }
@@ -128,6 +128,8 @@ IndexIterator NvmemTable::NewIndexIterator() {
 Status NvmemTable::AddCounter(size_t added){
   counters_ += added;
   nvmem->UpdateCounter(counters_);
+ // std::cout << "counters: " << counters_ <<"\n";
+
   return Status::OK();
 }
 
@@ -136,48 +138,50 @@ size_t NvmemTable::GetCounter(){
   return nvmem->GetCounter();
 }
 
-/* 
-Status NvmemTable::AddBatch(const NvmWriteBatch* batch){
-   int64_t offset = nvmem->Insert(batch->buf, batch->offset_); 
-  //std::cout<< "batch size :" << batch->offset_<< "\n";
-  for(int i = 0; i < batch->offset_arr_.size(); i++){
-      uint64_t address = offset + batch->offset_arr_[i].second;
-      index_.insert(batch->offset_arr_[i].first, address);
-      if (dynamic_filter)
-        dynamic_filter->Add(batch->offset_arr_[i].first);
-  }
-  memory_usage_ += batch->offset_;
-  return Status::OK();
-} */
-
 bool NvmemTable::AddIndex(Slice key ,uint64_t val){
     index_.insert(key.ToString(),val);
     return true;
 }
 
 
-Status NvmemTable::Recovery(){
+Status NvmemTable::Recovery(SequenceNumber& max_sequence){
 
   // ToDo Get the right counters
   // Because updatecounter is not called in testcase, counters is set to 20
-  int counters = 20;//nvmem->GetCounter();
+  int counters = nvmem->GetCounter();
   uint64_t offset = 16;
   uint64_t address = nvmem->GetBeginAddress();
   uint32_t key_length;
   uint32_t value_length;
+
+  //std::cout << " nvmem->GetCounter: " << counters <<"\n";
+  counters_ = counters;
+
+  if (counters > 0){
+    const char* key_ptr = GetVarint32Ptr((char *) (address + offset), 
+        (char *) (address + offset + 5), &key_length);
+    std::string key = // Slice(key_ptr, key_length - 8).ToString();
+                      std::string(key_ptr, key_length - 8);
+    max_sequence =  SequenceNumber(DecodeFixed64( key_ptr + key_length - 8));
+    max_sequence = (max_sequence >> 8) + counters;
+    // std::cout << "max_sequence: " << max_sequence << "\n";
+  }
+
   while(counters-- ){
     const char* key_ptr = GetVarint32Ptr((char *) (address + offset), 
         (char *) (address + offset + 5), &key_length);
     std::string key = // Slice(key_ptr, key_length - 8).ToString();
                       std::string(key_ptr, key_length - 8);
-    std::cout << "Key:" << key << "\n"; 
-    AddIndex(key, offset);
+    //std::cout << " key: " << key <<" ";                      
+    AddIndex(key, address + offset);
     offset += key_length +  VarintLength(key_length); 
     const char* value_ptr = GetVarint32Ptr((char *) (key_ptr  + key_length), 
        (char *) (key_ptr  + key_length + 5), &value_length);
     offset += value_length +  VarintLength(value_length); 
 
   }
+  nvmem->UpdateIndex(offset);
+  memory_usage_ = offset;
   return Status::OK();
 }
 
@@ -200,6 +204,7 @@ void NvmemTable::Add(SequenceNumber s, ValueType type,
   char* p = EncodeVarint32(buf, internal_key_size);
   memcpy(p, key.data(), key_size);
   p += key_size;
+  //std::cout<<"SequenceNumber: " << s<<"\n";
   EncodeFixed64(p, (s << 8) | type);
   p += 8;
   p = EncodeVarint32(p, val_size);

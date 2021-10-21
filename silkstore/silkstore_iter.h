@@ -34,6 +34,7 @@ public:
               sequence_(s),
               direction_(kForward),
               valid_(false) {
+           // printf("DBIter : public Iterator in silkstore\n ");
     }
 
     virtual ~DBIter() {
@@ -135,11 +136,13 @@ public:
 
     virtual void SeekToFirst() {
         direction_ = kForward;
-        ClearSavedValue();
+        ClearSavedValue();        
         iter_->SeekToFirst();
         if (iter_->Valid()) {
             FindNextUserEntry(false, &saved_key_ /* temporary storage */);
         } else {
+            printf("SeekToFirst invalid\n ");
+            
             valid_ = false;
         }
     }
@@ -229,7 +232,7 @@ private:
 
     bool ParseKey(ParsedInternalKey *ikey) {
         Slice k = iter_->key();
-
+        //printf("ParseKey: %s ", iter_->key().data());
         if (!ParseInternalKey(k, ikey)) {
             status_ = Status::Corruption("corrupted internal key in DBIter");
             return false;

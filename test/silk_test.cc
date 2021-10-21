@@ -145,7 +145,6 @@ void SequentialWrite(){
         std::cout << " Delete Open Db \n";
 }
 
-
 void RandomWrite(){
         leveldb::DB* db_ = nullptr;
         leveldb::Options options;
@@ -161,7 +160,6 @@ void RandomWrite(){
         leveldb::Status s = leveldb::DB::OpenSilkStore(options, "./silkdb", &db_);
         assert(s.ok()==true);
         std::cout << " ######### Open DB ######## \n";
-
        /*  static const int kNumOps = 100000000;
         static const long int kNumKVs = 30000000; */
         static const int kNumOps = 30000000;
@@ -174,8 +172,6 @@ void RandomWrite(){
         }
         std::map<std::string, std::string> m;
         size_t countNum = 0;
-
-
         std::cout << " ######### Begin Random Insert And Get Test ######## \n";
         countNum = 0;
         for (int i = 0; i < kNumOps; i++) {

@@ -25,11 +25,13 @@ void NvmManager::init(){
     }
 }
 
-
+Nvmem* NvmManager::reallocate(size_t offset, size_t cap){
+    std::lock_guard<std::mutex> lk(mtx);
+    return new Nvmem(data_ + offset, cap, this);
+}
 
 Nvmem* NvmManager::allocate(size_t size){
     std::lock_guard<std::mutex> lk(mtx);
-    //mutx.lock();
     if (index_ + size >= cap_){
         index_ = logCap_;
         if ( index_ + size > memUsage.front().first){
@@ -42,73 +44,67 @@ Nvmem* NvmManager::allocate(size_t size){
     }
     Nvmem* nvm = new Nvmem(data_ + index_, size, this);
     memUsage.emplace_back(index_,size);
-/*
-    std::cout << "memUsage.allocate: " <<  index_ <<" ";
-    std::cout << " memUsage size: " << memUsage.size() << " data: ";
-    for (auto it = memUsage.begin(); it != memUsage.end(); it++){
-        std::cout << " " <<  it->first <<" ";
-    }
-    std::cout<< "\n";
-*/
     index_ += size;
-    //mutx.unlock();    
     return nvm;
 }
 
-/* 
-NvmLog* NvmManager::initLog(size_t size){
-    logCap_ = size;
-    index_ = logCap_;
-    if (logCap_ >= cap_){
-        fprintf(stderr, "NvmManager is out can't init NvmLog \n");
-        assert(false);
-    }
-    NvmLog* nvmLog = new NvmLog(data_, size);
-    return nvmLog;
-} */
-
 std::string NvmManager::getNvmInfo(){
     std::string info;
+    info += std::to_string(index_) + ",";
     for(int i = 0; i < memUsage.size(); i++){
-       // printf(" %ld ", memUsage[i].first );
-
-       // info += std::to_string(memUsage[i].first) + ",";
-       // info += std::to_string(memUsage[i].second) + ",";
+        info += std::to_string(memUsage[i].first) + ",";
+        info += std::to_string(memUsage[i].second) + ",";
     }
     return info;
 }
 
+
+
+bool NvmManager::recovery(const std::vector<size_t> &records){
+    // recover data
+    index_ = records[0];
+    memUsage.clear();
+    for (int i = 1; i < records.size(); i += 2) {
+         memUsage.emplace_back(records[i],records[i+1]);
+    }
+    return true;
+    // print test code
+/*  
+    std::cout << "recovery inedx:" << index_ << " "; 
+    std::cout << " memUsage: ";
+    for(int i = 0; i < memUsage.size(); i++){
+        std::cout << memUsage[i].first << " " << memUsage[i].second<<" ";
+    }
+    std::cout << "\n"; 
+*/
+}
+
 void NvmManager::free(char * address){
-    //mutx.lock();
     std::lock_guard<std::mutex> lk(mtx);
     if (memUsage.empty()){
         printf("memUsage is empty can free memory\n");
         assert(false);
-       // mutx.unlock();    
         return ;
     }
     bool suc = false;
     for (auto it = memUsage.begin(); it != memUsage.end(); it++){
-        if (data_ + it->first == address){
-           // std::cout << "memUsage.erase: " <<  it->first <<" ";            
+        if (address - data_ == it->first){
             memUsage.erase(it);
             suc = true;
             break;
         }
     }
-    /*
-    std::cout << " memUsage size: " << memUsage.size() << " data: ";
-    for (auto it = memUsage.begin(); it != memUsage.end(); it++){
-        std::cout << " " <<  it->first <<" ";
-    }
-    std::cout<< "\n";
-    */
-    
-    if (!suc)
+    if (!suc){
         printf("########### can't free memory error ##########\n");
-    assert(suc);
-   // mutx.unlock();
-    
+      /*   
+        std::cout<<  "memUsage. size " << memUsage.size() << "\n";
+        for (auto it = memUsage.begin(); it != memUsage.end(); it++){
+             std::cout <<  it->first <<" ";           
+        }
+        std::cout<<" free address : " << size_t(address - data_) << "\n"; 
+    */
+    }
+    assert(suc);    
 }
 
  NvmManager::NvmManager(const char * nvm_file , size_t cap)

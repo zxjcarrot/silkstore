@@ -425,7 +425,8 @@ void Recovery(){
       leveldb::silkstore::Nvmem *nvmem = manager->allocate(asize);
       // nvm->init(4000);
       leveldb::NvmemTable *nvm = new leveldb::NvmemTable(cmp , dynamic_filter, nvmem); // = new  silkstore::NvmemTable();
-      nvm->Recovery();
+      uint64_t seq_num;
+      nvm->Recovery(seq_num);
 }
 int main(int argc, char** argv){
       //deleteUpdate();

@@ -227,6 +227,7 @@ private:
     Status Recover() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
     Status RecoverLogFile(uint64_t log_number, SequenceNumber *max_sequence) EXCLUSIVE_LOCKS_REQUIRED(mutex_);;
+    Status RecoverMemtable(uint64_t log_number, SequenceNumber *max_sequence) EXCLUSIVE_LOCKS_REQUIRED(mutex_);;
 
     WriteBatch *BuildBatchGroup(Writer **last_writer)
     EXCLUSIVE_LOCKS_REQUIRED(mutex_);

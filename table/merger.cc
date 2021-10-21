@@ -36,6 +36,7 @@ class MergingIterator : public Iterator {
   }
 
   virtual void SeekToFirst() {
+   // printf("NewMergingIterator SeekToFirst\n ");
     for (int i = 0; i < n_; i++) {
       children_[i].SeekToFirst();
     }

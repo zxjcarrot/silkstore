@@ -37,11 +37,12 @@ class NvmemTable {
   //explicit NvmemTable(const InternalKeyComparator& comparator, 
   //    DynamicFilter * dynamic_filter, silkstore::Nvmem *nvmem, silkstore::NvmLog *nvmlog);
   explicit NvmemTable(const InternalKeyComparator& comparator, 
-      DynamicFilter * dynamic_filter, silkstore::Nvmem *nvmem);
+      DynamicFilter* dynamic_filter, silkstore::Nvmem *nvmem);
 
 
   // Increase reference count.
-  void Ref() { 
+  void Ref() {
+    //std::lock_guard<std::mutex> lk(mtx);     
     ++refs_;  
     //printf(" ### nvmemtable::Ref() ### %d\n", refs_);
     return ;
@@ -55,11 +56,12 @@ class NvmemTable {
 
   // Drop reference count.  Delete if no more references exist.
   void Unref() {
+    //std::lock_guard<std::mutex> lk(mtx);    
     --refs_;
-    //printf(" %lx ### nvmemtable::Unref() ### %d\n",this , refs_);
     assert(refs_ >= 0);
     if (refs_ <= 0) {
-     // printf("$$$ nvmemtable::delete() $$$\n");      
+      //printf(" %lx ### nvmemtable::Unref() ### %d\n",this , refs_);    
+      //printf("$$$ nvmemtable::delete() $$$\n");      
       delete this;
     }
     return ;
@@ -84,7 +86,7 @@ class NvmemTable {
            const Slice& value);
   //Status AddBatch(const NvmWriteBatch* b);
   
-  Status Recovery();
+  Status Recovery(SequenceNumber& max_sequence);
   Status AddCounter(size_t added);
   size_t GetCounter();
   bool AddIndex(Slice,uint64_t);
@@ -114,6 +116,7 @@ class NvmemTable {
   int refs_;
   Index index_;
   silkstore::Nvmem *nvmem;
+  //std::mutex mtx;  
   // buf's first 4 bytes magic number 0xCAFEBABE used to recover data 
   char buf[5120];
   //char magicNum[4];

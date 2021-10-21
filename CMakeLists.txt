@@ -320,7 +320,9 @@ if(LEVELDB_BUILD_TESTS)
     add_test(NAME "${test_target_name}" COMMAND "${test_target_name}")
   endfunction(leveldb_test)
   
-  leveldb_test("${PROJECT_SOURCE_DIR}/test/silk.cc")
+  leveldb_test("${PROJECT_SOURCE_DIR}/test/silk_test.cc")
+  leveldb_test("${PROJECT_SOURCE_DIR}/test/recovery_test.cc")
+  leveldb_test("${PROJECT_SOURCE_DIR}/test/seqwrite_test.cc")  
   leveldb_test("${PROJECT_SOURCE_DIR}/test/seq_rand_add-get_test.cc")
 
 
