@@ -3,7 +3,7 @@
 This work proposes SilkStore, a write-efficient and adaptive key-value store. This work makes the observation that the multi-level design of traditional LSM-trees and compaction algorithms are the main contributors of write amplification. SilkStore address this by introducing a single level design and a workload-adaptive compaction scheme that uses different compaction algorithms for different sub key-ranges based on read/write intensity.
 
 
-Thesis and slides for the thesis defense can be found [here](https://1drv.ms/p/s!ArFg8WfWy6iTojSWjEFrsr6_0uAI?e=6MIZYX) and [here](https://1drv.ms/p/s!ArFg8WfWy6iTojSWjEFrsr6_0uAI?e=6MIZYX) in Chinese.
+Slides for the thesis defense and thesis can be found [here](https://1drv.ms/p/s!ArFg8WfWy6iTojSWjEFrsr6_0uAI?e=6MIZYX) and [here](https://1drv.ms/b/s!ArFg8WfWy6iTg4wzT3a1X4DAau-2-g?e=qF7CYW) in Chinese.
 
 You can find the design doc [here](https://github.com/zxjcarrot/silkstore/blob/master/design/design.md) in Chinese.
 
